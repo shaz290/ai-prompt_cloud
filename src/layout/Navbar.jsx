@@ -58,12 +58,13 @@ export const Navbar = () => {
             <div className="container mx-auto px-6 py-6 flex flex-col gap-4">
                 {navLinks.map((link, index) => (
                     <a href={link.href} key={index}
+                        onClick={() => setIsMobileMenuOpen(false)}
                         className="text-lg text-muted-foreground hover:text-foreground py-2">
                         {link.label}
                     </a>
                 ))}
 
-                <Button size="sm">
+                <Button onClick={() => setIsMobileMenuOpen(false)}>
                     Contact Me
                 </Button>
             </div>
