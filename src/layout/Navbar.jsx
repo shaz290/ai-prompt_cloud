@@ -98,7 +98,7 @@ export const Navbar = () => {
           onClick={(e) => handleNavClick(e, { href: "#home" })}
           className="text-xl font-bold hover:text-primary"
         >
-          AHS<span className="text-primary">.</span>
+          ASH<span className="text-primary">.</span>
         </a>
 
         {/* DESKTOP */}
