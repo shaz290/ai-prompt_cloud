@@ -6,7 +6,7 @@ import {
 import { supabase } from "../lib/supabaseClient";
 import { SiOpenai, SiGoogle, SiPerplexity } from "react-icons/si";
 
-const PAGE_SIZE = 4;
+const PAGE_SIZE = 7;
 
 /* ---------- SHARE PARAM ---------- */
 const getShareIdFromUrl = () => {
