@@ -1,12 +1,9 @@
-import {
-  useEffect,
-  useState,
-  useRef,
-} from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { SiOpenai, SiGoogle, SiPerplexity } from "react-icons/si";
 
 const PAGE_SIZE = 7;
+const FILTERS = ["all", "men", "women", "kids", "other"];
 
 /* ---------- SHARE PARAM ---------- */
 const getShareIdFromUrl = () => {
@@ -24,21 +21,24 @@ const formatDate = (date) => {
   });
 };
 
-/* ---------- CLOUDFARE IMAGE ID ---------- */
-const extractCloudflareImageId = (url) => {
-  // https://imagedelivery.net/<account>/<imageId>/public
+/* ---------- CLOUDINARY IMAGE ID ---------- */
+const extractCloudinaryImageId = (url) => {
   return url?.split("/")?.[4];
 };
 
 export const MyDetails = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
+
   const [currentPage, setCurrentPage] = useState(1);
   const [activeIndex, setActiveIndex] = useState({});
   const [toastMessage, setToastMessage] = useState("");
+
   const [sharedId, setSharedId] = useState(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+
+  const [activeFilter, setActiveFilter] = useState("all");
 
   const cardRefs = useRef({});
 
@@ -78,40 +78,35 @@ export const MyDetails = () => {
       .from("descriptions")
       .select(`
         id,
+        image_name,
+        image_type,
         description_details,
+        priority,
         created_on,
         image_urls ( image_url )
       `)
       .order("created_on", { ascending: false });
 
-    if (!error) setData(data);
+    if (!error) setData(data || []);
     setLoading(false);
   };
 
-  /* ---------- DELETE HANDLER ---------- */
+  /* ---------- DELETE ---------- */
   const handleDelete = async (item) => {
     const confirmed = window.confirm(
-      "Are you sure you want to delete this description?\nThis cannot be undone."
+      "Are you sure you want to delete this?\nThis cannot be undone."
     );
 
     if (!confirmed) return;
 
     try {
-      // 1️⃣ Delete from Supabase
-      const { error } = await supabase
-        .from("descriptions")
-        .delete()
-        .eq("id", item.id);
+      await supabase.from("descriptions").delete().eq("id", item.id);
 
-      if (error) throw error;
-
-      // 2️⃣ Extract Cloudflare image IDs
       const imageIds =
         item.image_urls
-          ?.map((img) => extractCloudflareImageId(img.image_url))
+          ?.map((img) => extractCloudinaryImageId(img.image_url))
           .filter(Boolean) || [];
 
-      // 3️⃣ Delete from Cloudflare (backend)
       if (imageIds.length > 0) {
         await fetch("/api/delete-cloudflare-images", {
           method: "POST",
@@ -120,7 +115,6 @@ export const MyDetails = () => {
         });
       }
 
-      // 4️⃣ Update UI
       setData((prev) => prev.filter((d) => d.id !== item.id));
       showToast("Deleted successfully");
     } catch (err) {
@@ -141,11 +135,26 @@ export const MyDetails = () => {
     );
   }
 
-  /* ---------- FILTER & PAGINATION ---------- */
-  const filteredData = sharedId
-    ? data.filter((item) => item.id.toString() === sharedId)
-    : data;
+  /* ---------- FILTER LOGIC ---------- */
+  const filteredData = (() => {
+    let result = data;
 
+    // Shared link overrides everything
+    if (sharedId) {
+      return result.filter((item) => item.id.toString() === sharedId);
+    }
+
+    // Admin category filter
+    if (isAdmin && activeFilter !== "all") {
+      result = result.filter(
+        (item) => item.image_type === activeFilter
+      );
+    }
+
+    return result;
+  })();
+
+  /* ---------- PAGINATION ---------- */
   const totalPages = Math.ceil(filteredData.length / PAGE_SIZE);
 
   const paginatedData =
@@ -175,7 +184,7 @@ export const MyDetails = () => {
       <div className="container mx-auto px-6">
 
         {/* HEADER */}
-        <div className="text-center mb-12">
+        <div className="text-center mb-10">
           <h2 className="text-4xl md:text-5xl font-bold mb-4">
             My <span className="font-serif italic">Creations</span>
           </h2>
@@ -183,6 +192,28 @@ export const MyDetails = () => {
             Browse AI-generated visuals
           </p>
         </div>
+
+        {/* FILTERS (ADMIN ONLY) */}
+        {isAdmin && !sharedId && (
+          <div className="flex justify-center gap-3 mb-12 flex-wrap">
+            {FILTERS.map((filter) => (
+              <button
+                key={filter}
+                onClick={() => {
+                  setActiveFilter(filter);
+                  setCurrentPage(1);
+                }}
+                className={`px-4 py-2 rounded-xl text-sm capitalize transition ${
+                  activeFilter === filter
+                    ? "bg-primary text-white"
+                    : "border text-muted-foreground hover:bg-surface"
+                }`}
+              >
+                {filter}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* TOAST */}
         {toastMessage && (
@@ -206,25 +237,21 @@ export const MyDetails = () => {
                 className="flex flex-col h-full space-y-4"
               >
                 {/* IMAGE */}
-                <div className="relative">
-                  <img
-                    src={images[index]?.image_url}
-                    className="w-full aspect-[4/5] object-cover rounded-2xl"
-                    alt="creation"
-                  />
+                <img
+                  src={images[index]?.image_url}
+                  className="w-full aspect-[4/5] object-cover rounded-2xl"
+                  alt={item.image_name}
+                />
+
+                {/* META */}
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>{item.image_type?.toUpperCase()}</span>
+                  <span>{formatDate(item.created_on)}</span>
                 </div>
 
-                {/* UPLOAD DATE */}
-                <p className="text-xs text-muted-foreground">
-                  Uploaded on {formatDate(item.created_on)}
-                </p>
-
                 {/* DESCRIPTION */}
-                <div className="relative">
-                  <div className="description-scroll h-[96px] text-sm text-muted-foreground pr-1">
-                    {item.description_details}
-                  </div>
-                  <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-background to-transparent" />
+                <div className="description-scroll h-[96px] text-sm text-muted-foreground pr-1">
+                  {item.description_details}
                 </div>
 
                 {/* ACTIONS */}
@@ -239,22 +266,18 @@ export const MyDetails = () => {
                     Copy
                   </button>
 
-                  {/* SHARE BUTTON (UNCHANGED) */}
-                  {(
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(
-                          `${window.location.origin}?share=${item.id}`
-                        );
-                        showToast("Sharable link copied");
-                      }}
-                      className="w-full py-2 border rounded-xl"
-                    >
-                      Share Link
-                    </button>
-                  )}
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(
+                        `${window.location.origin}?share=${item.id}`
+                      );
+                      showToast("Sharable link copied");
+                    }}
+                    className="w-full py-2 border rounded-xl"
+                  >
+                    Share Link
+                  </button>
 
-                  {/* DELETE BUTTON (ADDED BELOW SHARE) */}
                   {isAdmin && (
                     <button
                       onClick={() => handleDelete(item)}
