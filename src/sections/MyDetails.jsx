@@ -15,14 +15,16 @@ const getShareIdFromUrl = () => {
 const formatDate = (date) => {
   if (!date) return "";
 
-  return new Date(date).toLocaleString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
-  }).toUpperCase();
+  return new Date(date)
+    .toLocaleString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    })
+    .toUpperCase();
 };
 
 /* ---------- CLOUDINARY IMAGE ID ---------- */
@@ -45,6 +47,8 @@ export const MyDetails = () => {
   const [activeFilter, setActiveFilter] = useState("all");
 
   const cardRefs = useRef({});
+  const sectionRef = useRef(null);
+  const firstRender = useRef(true);
 
   /* ---------- INITIAL LOAD ---------- */
   useEffect(() => {
@@ -54,9 +58,24 @@ export const MyDetails = () => {
     fetchDetails();
   }, []);
 
+  /* ---------- SCROLL TO TOP ON PAGINATION ---------- */
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+
+    sectionRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }, [currentPage]);
+
   /* ---------- AUTH CHECK ---------- */
   const checkAuth = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
     if (!session) {
       setIsAdmin(false);
@@ -143,12 +162,10 @@ export const MyDetails = () => {
   const filteredData = (() => {
     let result = data;
 
-    // Shared link overrides everything
     if (sharedId) {
       return result.filter((item) => item.id.toString() === sharedId);
     }
 
-    // Admin category filter
     if (isAdmin && activeFilter !== "all") {
       result = result.filter(
         (item) => item.image_type === activeFilter
@@ -184,7 +201,7 @@ export const MyDetails = () => {
   }
 
   return (
-    <section id="mydetails" className="py-32">
+    <section ref={sectionRef} id="mydetails" className="py-32">
       <div className="container mx-auto px-6">
 
         {/* HEADER */}
@@ -197,7 +214,7 @@ export const MyDetails = () => {
           </p>
         </div>
 
-        {/* FILTERS (ADMIN ONLY) */}
+        {/* FILTERS */}
         {isAdmin && !sharedId && (
           <div className="flex justify-center gap-3 mb-12 flex-wrap">
             {FILTERS.map((filter) => (
@@ -235,30 +252,21 @@ export const MyDetails = () => {
             const index = activeIndex[item.id] || 0;
 
             return (
-              <div
-                key={item.id}
-                ref={(el) => (cardRefs.current[item.id] = el)}
-                className="flex flex-col h-full space-y-4"
-              >
-                {/* IMAGE */}
+              <div key={item.id} className="flex flex-col h-full space-y-4">
                 <img
                   src={images[index]?.image_url}
                   className="w-full aspect-[4/5] object-cover rounded-2xl"
                   alt={item.image_name}
                 />
 
-                {/* META */}
                 <div className="flex justify-between text-xs text-muted-foreground">
-                  {/* <span>{item.image_type?.toUpperCase()}</span> */}
                   <span>{formatDate(item.created_on)}</span>
                 </div>
 
-                {/* DESCRIPTION */}
                 <div className="description-scroll h-[96px] text-sm text-muted-foreground pr-1">
                   {item.description_details}
                 </div>
 
-                {/* ACTIONS */}
                 <div className="mt-auto space-y-3">
                   <button
                     onClick={() => {
