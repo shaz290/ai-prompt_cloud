@@ -14,11 +14,15 @@ const getShareIdFromUrl = () => {
 /* ---------- DATE FORMATTER ---------- */
 const formatDate = (date) => {
   if (!date) return "";
-  return new Date(date).toLocaleDateString("en-IN", {
+
+  return new Date(date).toLocaleString("en-IN", {
     day: "2-digit",
     month: "short",
     year: "numeric",
-  });
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  }).toUpperCase();
 };
 
 /* ---------- CLOUDINARY IMAGE ID ---------- */
@@ -245,7 +249,7 @@ export const MyDetails = () => {
 
                 {/* META */}
                 <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>{item.image_type?.toUpperCase()}</span>
+                  {/* <span>{item.image_type?.toUpperCase()}</span> */}
                   <span>{formatDate(item.created_on)}</span>
                 </div>
 
