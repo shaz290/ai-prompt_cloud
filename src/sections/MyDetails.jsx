@@ -57,12 +57,25 @@ export const MyDetails = () => {
       const id = getShareIdFromUrl();
       if (id) setSharedId(id);
 
-      const admin = await checkAuth();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-      if (admin || id) {
+      if (session) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", session.user.id)
+          .single();
+
+        const admin = profile?.role === "admin";
+        setIsAdmin(admin);
+
+        if (admin || id) {
+          await fetchDetails();
+        }
+      } else if (id) {
         await fetchDetails();
-      } else {
-        setLoading(false);
       }
 
       setCheckingAuth(false);
@@ -445,7 +458,7 @@ export const MyDetails = () => {
             </button>
 
             {/* PREVIOUS */}
-            <button
+            {/* <button
               onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
               disabled={currentPage === 1}
               className="px-4 py-2 rounded-xl text-sm bg-surface text-muted-foreground
@@ -454,7 +467,7 @@ export const MyDetails = () => {
                  disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Prev
-            </button>
+            </button> */}
 
             {/* PAGE NUMBERS (MAX 3) */}
             {(() => {
@@ -484,7 +497,7 @@ export const MyDetails = () => {
               ));
             })()}
 
-            {/* NEXT */}
+            {/* NEXT
             <button
               onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
               disabled={currentPage === totalPages}
@@ -494,7 +507,7 @@ export const MyDetails = () => {
                  disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Next
-            </button>
+            </button> */}
 
             {/* LAST */}
             <button
