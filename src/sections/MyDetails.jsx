@@ -321,7 +321,12 @@ export const MyDetails = () => {
               <div key={item.id} className="flex flex-col h-full space-y-4">
                 <img
                   src={images[index]?.image_url}
-                  className="w-full aspect-[4/5] object-cover rounded-2xl"
+                  className="w-full aspect-[4/5] object-cover rounded-2xl
+                  border border-blue-500/30
+                  shadow-md shadow-blue-500/30
+                  hover:shadow-xl hover:shadow-blue-500/60
+                  hover:border-blue-500/50
+                  transition-all duration-300"
                   alt={item.image_name}
                 />
 
