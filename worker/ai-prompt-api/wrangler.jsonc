@@ -1,0 +1,26 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "ai-prompt-api",
+	"account_id": "caa804a7d6378f16726286bef6516fe5",
+	"main": "worker.js",
+	"compatibility_date": "2025-01-01",
+	"observability": {
+		"enabled": true
+	},
+	"r2_buckets": [
+		{
+			"bucket_name": "ai-prompt-images",
+			"binding": "IMAGES"
+		}
+	],
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "ai_prompt_db",
+			"database_id": "180d1d4f-bce6-48a7-b9bc-782ee5bb82de"
+		}
+	],
+	"vars": {
+		"R2_PUBLIC_URL": "https://pub-4db7b1c166df41c4b929158d1c5f1995.r2.dev"
+	}
+}
