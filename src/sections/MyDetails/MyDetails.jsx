@@ -307,7 +307,7 @@ export const MyDetails = () => {
                  hover:bg-primary/10 hover:text-primary
                  disabled:opacity-40 disabled:cursor-not-allowed"
                         >
-                            Last
+                            LastPage
                         </button>
 
                     </div>
