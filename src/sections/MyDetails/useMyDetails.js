@@ -59,23 +59,25 @@ export const useMyDetails = () => {
     }, [sharedId, loading]);
 
     /* ---------- FETCH ---------- */
-    const fetchDetails = async () => {
+    const fetchDetails = async (page = 1) => {
         setLoading(true);
 
-        const { data, error } = await supabase
-            .from("descriptions")
-            .select(`
-        id,
-        image_name,
-        image_type,
-        description_details,
-        priority,
-        created_on,
-        image_urls ( image_url )
-      `)
-            .order("created_on", { ascending: false });
+        try {
+            const res = await fetch(
+                `https://ai-prompt-api.aipromptweb-caa.workers.dev/api/descriptions?page=${page}&pageSize=${PAGE_SIZE}`
+            );
 
-        if (!error) setData(data || []);
+            const result = await res.json();
+
+            setData(result.data || []);
+
+            // optional: if you need pagination info
+            // setTotalPages(result.pagination.totalPages);
+
+        } catch (err) {
+            console.error("Fetch failed", err);
+        }
+
         setLoading(false);
     };
 
