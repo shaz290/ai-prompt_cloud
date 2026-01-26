@@ -15,9 +15,6 @@ export const useMyDetails = () => {
     const [toastMessage, setToastMessage] = useState("");
 
     const [sharedId, setSharedId] = useState(null);
-    const [checkingAuth, setCheckingAuth] = useState(true);
-    const [isAdmin, setIsAdmin] = useState(false);
-
     const [activeFilter, setActiveFilter] = useState("all");
 
     const [editingId, setEditingId] = useState(null);
@@ -32,28 +29,7 @@ export const useMyDetails = () => {
             const id = getShareIdFromUrl();
             if (id) setSharedId(id);
 
-            const {
-                data: { session },
-            } = await supabase.auth.getSession();
-
-            if (session) {
-                const { data: profile } = await supabase
-                    .from("profiles")
-                    .select("role")
-                    .eq("id", session.user.id)
-                    .single();
-
-                const admin = profile?.role === "admin";
-                setIsAdmin(admin);
-
-                if (admin || id) {
-                    await fetchDetails();
-                }
-            } else if (id) {
-                await fetchDetails();
-            }
-
-            setCheckingAuth(false);
+            await fetchDetails();
         };
 
         init();
@@ -171,7 +147,7 @@ export const useMyDetails = () => {
             return result.filter((item) => item.id.toString() === sharedId);
         }
 
-        if (isAdmin && activeFilter !== "all") {
+        if (activeFilter !== "all") {
             result = result.filter(
                 (item) => item.image_type === activeFilter
             );
@@ -183,19 +159,15 @@ export const useMyDetails = () => {
     /* ---------- PAGINATION ---------- */
     const totalPages = Math.ceil(filteredData.length / PAGE_SIZE);
 
-    const paginatedData =
-        sharedId || !isAdmin
-            ? filteredData
-            : filteredData.slice(
-                (currentPage - 1) * PAGE_SIZE,
-                currentPage * PAGE_SIZE
-            );
+    const paginatedData = sharedId
+        ? filteredData
+        : filteredData.slice(
+            (currentPage - 1) * PAGE_SIZE,
+            currentPage * PAGE_SIZE
+        );
 
     return {
-        data,
         loading,
-        checkingAuth,
-        isAdmin,
         sharedId,
         activeFilter,
         currentPage,

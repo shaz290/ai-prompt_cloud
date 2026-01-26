@@ -6,8 +6,6 @@ import { useMyDetails } from "./useMyDetails";
 export const MyDetails = () => {
     const {
         loading,
-        checkingAuth,
-        isAdmin,
         sharedId,
         activeFilter,
         currentPage,
@@ -25,25 +23,6 @@ export const MyDetails = () => {
         handleDelete,
         showToast,
     } = useMyDetails();
-
-    if (checkingAuth) {
-        return (
-            <section className="py-32 text-center">
-                <p>Checking access...</p>
-            </section>
-        );
-    }
-
-    if (!isAdmin && !sharedId) {
-        return (
-            <section className="py-32 text-center">
-                <h2 className="text-2xl font-bold">Access Restricted 🔒</h2>
-                <p className="text-muted-foreground mt-2">
-                    You can only view shared links.
-                </p>
-            </section>
-        );
-    }
 
     if (loading) {
         return (
@@ -68,7 +47,7 @@ export const MyDetails = () => {
                 </div>
 
                 {/* FILTERS */}
-                {isAdmin && !sharedId && (
+                {!sharedId && (
                     <div className="flex justify-center gap-3 mb-12 flex-wrap">
                         {FILTERS.map((filter) => (
                             <button
@@ -152,46 +131,43 @@ export const MyDetails = () => {
                                     Share Link
                                 </button>
 
-                                {isAdmin && (
-                                    <>
-                                        {editingId === item.id ? (
-                                            <div className="flex gap-2">
-                                                <button
-                                                    onClick={() => handleUpdate(item.id)}
-                                                    className="w-full py-2 bg-green-600 text-white rounded-xl"
-                                                >
-                                                    Save
-                                                </button>
-                                                <button
-                                                    onClick={() => {
-                                                        setEditingId(null);
-                                                        setEditValue("");
-                                                    }}
-                                                    className="w-full py-2 border rounded-xl"
-                                                >
-                                                    Cancel
-                                                </button>
-                                            </div>
-                                        ) : (
-                                            <button
-                                                onClick={() => {
-                                                    setEditingId(item.id);
-                                                    setEditValue(item.description_details);
-                                                }}
-                                                className="w-full py-2 border rounded-xl"
-                                            >
-                                                Edit
-                                            </button>
-                                        )}
-
+                                {/* EDIT / DELETE (public) */}
+                                {editingId === item.id ? (
+                                    <div className="flex gap-2">
                                         <button
-                                            onClick={() => handleDelete(item)}
-                                            className="w-full py-2 border border-red-500 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition"
+                                            onClick={() => handleUpdate(item.id)}
+                                            className="w-full py-2 bg-green-600 text-white rounded-xl"
                                         >
-                                            Delete
+                                            Save
                                         </button>
-                                    </>
+                                        <button
+                                            onClick={() => {
+                                                setEditingId(null);
+                                                setEditValue("");
+                                            }}
+                                            className="w-full py-2 border rounded-xl"
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <button
+                                        onClick={() => {
+                                            setEditingId(item.id);
+                                            setEditValue(item.description_details);
+                                        }}
+                                        className="w-full py-2 border rounded-xl"
+                                    >
+                                        Edit
+                                    </button>
                                 )}
+
+                                <button
+                                    onClick={() => handleDelete(item)}
+                                    className="w-full py-2 border border-red-500 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition"
+                                >
+                                    Delete
+                                </button>
 
                                 <div className="flex justify-center gap-6 pt-2">
                                     <SiGoogle
@@ -230,35 +206,18 @@ export const MyDetails = () => {
                 </div>
 
                 {/* PAGINATION */}
-                {/* PAGINATION */}
-                {isAdmin && !sharedId && totalPages > 1 && (
+                {!sharedId && totalPages > 1 && (
                     <div className="flex justify-center items-center gap-2 mt-16">
 
-                        {/* FIRST */}
                         <button
                             onClick={() => setCurrentPage(1)}
                             disabled={currentPage === 1}
                             className="px-4 py-2 rounded-xl text-sm bg-surface text-muted-foreground
-                 transition-all duration-200 ease-out
-                 hover:bg-primary/10 hover:text-primary
-                 disabled:opacity-40 disabled:cursor-not-allowed"
+              hover:bg-primary/10 hover:text-primary disabled:opacity-40"
                         >
                             First
                         </button>
 
-                        {/* PREVIOUS */}
-                        {/* <button
-              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-              disabled={currentPage === 1}
-              className="px-4 py-2 rounded-xl text-sm bg-surface text-muted-foreground
-                 transition-all duration-200 ease-out
-                 hover:bg-primary/10 hover:text-primary
-                 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Prev
-            </button> */}
-
-                        {/* PAGE NUMBERS (MAX 3) */}
                         {(() => {
                             let start = Math.max(currentPage - 1, 1);
                             let end = Math.min(start + 2, totalPages);
@@ -274,11 +233,9 @@ export const MyDetails = () => {
                                 <button
                                     key={page}
                                     onClick={() => setCurrentPage(page)}
-                                    className={`px-4 py-2 rounded-xl text-sm
-            transition-all duration-200 ease-out
-            ${currentPage === page
-                                            ? "bg-primary text-white shadow-sm"
-                                            : "bg-surface text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                                    className={`px-4 py-2 rounded-xl text-sm ${currentPage === page
+                                        ? "bg-primary text-white"
+                                        : "bg-surface text-muted-foreground hover:bg-primary/10 hover:text-primary"
                                         }`}
                                 >
                                     {page}
@@ -286,32 +243,17 @@ export const MyDetails = () => {
                             ));
                         })()}
 
-                        {/* NEXT
-            <button
-              onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-              disabled={currentPage === totalPages}
-              className="px-4 py-2 rounded-xl text-sm bg-surface text-muted-foreground
-                 transition-all duration-200 ease-out
-                 hover:bg-primary/10 hover:text-primary
-                 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Next
-            </button> */}
-
-                        {/* LAST */}
                         <button
                             onClick={() => setCurrentPage(totalPages)}
                             disabled={currentPage === totalPages}
                             className="px-4 py-2 rounded-xl text-sm bg-surface text-muted-foreground
-                 transition-all duration-200 ease-out
-                 hover:bg-primary/10 hover:text-primary
-                 disabled:opacity-40 disabled:cursor-not-allowed"
+              hover:bg-primary/10 hover:text-primary disabled:opacity-40"
                         >
                             LastPage
                         </button>
-
                     </div>
                 )}
+
             </div>
         </section>
     );
