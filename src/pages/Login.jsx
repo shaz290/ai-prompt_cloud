@@ -16,7 +16,7 @@ export const Login = () => {
     setError("");
 
     try {
-      const res = await fetch(`${API_BASE}/api/login`, {
+      const res = await fetch(`https://ai-prompt-api.aipromptweb-caa.workers.dev/api/login`, {
         method: "POST",
         credentials: "include", // 🔐 cookie
         headers: {

@@ -170,7 +170,7 @@ export default {
                     headers: {
                         ...corsHeaders,
                         "Content-Type": "application/json",
-                        "Set-Cookie": `auth=${token}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=604800`,
+                        "Set-Cookie": `auth=${token}; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=604800`,
                     },
                 });
             } catch (e) {
@@ -209,10 +209,19 @@ export default {
                 status: 200,
                 headers: {
                     ...corsHeaders,
-                    "Set-Cookie": "auth=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0",
+                    "Set-Cookie": [
+                        "auth=;",
+                        "HttpOnly",
+                        "Secure",
+                        "SameSite=None",
+                        "Path=/",
+                        "Max-Age=0",
+                        "Expires=Thu, 01 Jan 1970 00:00:00 GMT",
+                    ].join("; "),
                 },
             });
         }
+
 
         /* =====================================================
            UPLOAD → R2
