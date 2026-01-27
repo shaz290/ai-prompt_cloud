@@ -493,13 +493,11 @@ export default {
                     );
                 }
 
-                const created_on = Math.floor(Date.now() / 1000)
-
                 await env.DB.prepare(
-                    `INSERT INTO image_urls (description_id, image_url,created_on)
+                    `INSERT INTO image_urls (description_id, image_url)
            VALUES (?, ?, ?)`
                 )
-                    .bind(description_id, image_url, created_on)
+                    .bind(description_id, image_url)
                     .run();
 
                 return new Response(
