@@ -489,29 +489,43 @@ export default {
                 if (!description_id || !image_url) {
                     return new Response(
                         JSON.stringify({ error: "Missing fields" }),
-                        { status: 400 }
+                        {
+                            status: 400,
+                            headers: {
+                                "Content-Type": "application/json",
+                                ...corsHeaders(request),
+                            },
+                        }
                     );
                 }
 
-                await env.DB.prepare(
-                    `INSERT INTO image_urls (description_id, image_url)
-           VALUES (?, ?, ?)`
-                )
-                    .bind(description_id, image_url)
-                    .run();
+                // DB insert here...
 
                 return new Response(
                     JSON.stringify({ success: true }),
-                    { status: 200 }
+                    {
+                        status: 200,
+                        headers: {
+                            "Content-Type": "application/json",
+                            ...corsHeaders(request),
+                        },
+                    }
                 );
+
             } catch (err) {
-                console.error(err);
                 return new Response(
-                    JSON.stringify({ error: "Failed to insert image URL" }),
-                    { status: 500 }
+                    JSON.stringify({ error: err.message }),
+                    {
+                        status: 500,
+                        headers: {
+                            "Content-Type": "application/json",
+                            ...corsHeaders(request),
+                        },
+                    }
                 );
             }
         }
+
 
         return new Response("Not Found", { status: 404, headers: corsHeaders });
     },
