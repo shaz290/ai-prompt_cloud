@@ -6,6 +6,7 @@ import { SignJWT, jwtVerify } from "jose";
 
 const allowedOrigins = [
     "https://ahsan-prompt.pages.dev",
+    "https://ai-prompt-web.pages.dev",
     "http://localhost:5173",
 ];
 
@@ -170,7 +171,7 @@ export default {
                     headers: {
                         ...corsHeaders,
                         "Content-Type": "application/json",
-                        "Set-Cookie": `auth=${token}; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=604800`,
+                        "Set-Cookie": `auth=${token}; HttpOnly; Secure; SameSite=none; Path=/; Max-Age=604800`,
                     },
                 });
             } catch (e) {
@@ -227,25 +228,72 @@ export default {
            UPLOAD → R2
            POST /upload
            ===================================================== */
-        if (request.method === "POST" && url.pathname === "/upload") {
-            const formData = await request.formData();
-            const file = formData.get("file");
-            if (!file) return new Response("File missing", { status: 400, headers: corsHeaders });
+        if (request.method === "POST" && url.pathname === "/api/upload") {
+            try {
+                const token = getAuthToken(request);
+                if (!token) {
+                    return new Response("Unauthorized", {
+                        status: 401,
+                        headers: corsHeaders,
+                    });
+                }
 
-            const ext = file.name.split(".").pop();
-            const key = `${crypto.randomUUID()}.${ext}`;
+                const user = await verifyToken(token, env);
+                if (user.role !== "admin") {
+                    return new Response("Forbidden", {
+                        status: 403,
+                        headers: corsHeaders,
+                    });
+                }
 
-            await env.R2.put(key, file.stream(), {
-                httpMetadata: { contentType: file.type },
-            });
+                const formData = await request.formData();
+                const file = formData.get("file");
 
-            return new Response(
-                JSON.stringify({
-                    image_url: `${env.R2_PUBLIC_URL}/${key}`,
-                }),
-                { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-            );
+                if (!file) {
+                    return new Response("No file", {
+                        status: 400,
+                        headers: corsHeaders,
+                    });
+                }
+
+                const buffer = await file.arrayBuffer();
+                const uuid = crypto.randomUUID();
+                const key = `images/${uuid}.webp`;
+
+                await env.IMAGES.put(key, buffer, {
+                    httpMetadata: {
+                        contentType: file.type || "image/webp",
+                        cacheControl: "public, max-age=31536000, immutable",
+                    },
+                });
+
+
+                return new Response(
+                    JSON.stringify({ path: key }),
+                    {
+                        status: 200,
+                        headers: {
+                            ...corsHeaders,
+                            "Content-Type": "application/json",
+                        },
+                    }
+                );
+            } catch (err) {
+                console.error("UPLOAD ERROR:", err);
+
+                return new Response(
+                    JSON.stringify({ error: err.message }),
+                    {
+                        status: 500,
+                        headers: {
+                            ...corsHeaders,
+                            "Content-Type": "application/json",
+                        },
+                    }
+                );
+            }
         }
+
 
         /* =====================================================
            DESCRIPTIONS
@@ -340,6 +388,132 @@ export default {
             }
         }
 
+        /* =====================================================
+           CREATE DESCRIPTION
+           POST /api/description
+           ===================================================== */
+        if (request.method === "POST" && url.pathname === "/api/description") {
+            try {
+                /* ---------- AUTH ---------- */
+                const token = getAuthToken(request);
+                if (!token) {
+                    return new Response("Unauthorized", {
+                        status: 401,
+                        headers: corsHeaders,
+                    });
+                }
+
+                const user = await verifyToken(token, env);
+                if (user.role !== "admin") {
+                    return new Response("Forbidden", {
+                        status: 403,
+                        headers: corsHeaders,
+                    });
+                }
+
+                /* ---------- BODY ---------- */
+                const body = await request.json();
+
+                const image_name = body.image_name?.trim();
+                const image_type = body.image_type?.trim();
+                const description_details = body.description_details?.trim();
+
+                const priority = Number.isInteger(Number(body.priority))
+                    ? Number(body.priority)
+                    : 0;
+
+                if (!image_name || !image_type || !description_details) {
+                    return new Response("Missing fields", {
+                        status: 400,
+                        headers: corsHeaders,
+                    });
+                }
+
+                /* ---------- REQUIRED FIELD ---------- */
+                const created_on = Math.floor(Date.now() / 1000); // ✅ UNIX seconds
+
+                /* ---------- INSERT ---------- */
+                const result = await env.DB.prepare(`
+            INSERT INTO descriptions (
+                image_name,
+                image_type,
+                description_details,
+                created_on,
+                priority
+            )
+            VALUES (?, ?, ?, ?, ?)
+        `)
+                    .bind(
+                        image_name,
+                        image_type,
+                        description_details,
+                        created_on,
+                        priority
+                    )
+                    .run();
+
+                const id = result.meta.last_row_id;
+
+                /* ---------- RESPONSE ---------- */
+                return new Response(
+                    JSON.stringify({ id }),
+                    {
+                        status: 200,
+                        headers: {
+                            ...corsHeaders,
+                            "Content-Type": "application/json",
+                        },
+                    }
+                );
+            } catch (err) {
+                console.error("CREATE DESCRIPTION ERROR:", err);
+
+                return new Response(
+                    JSON.stringify({ error: err.message }),
+                    {
+                        status: 500,
+                        headers: {
+                            ...corsHeaders,
+                            "Content-Type": "application/json",
+                        },
+                    }
+                );
+            }
+        }
+
+
+        if (request.method === "POST" && url.pathname === "/api/imageUrls") {
+            try {
+                const { description_id, image_url } = await request.json();
+
+                if (!description_id || !image_url) {
+                    return new Response(
+                        JSON.stringify({ error: "Missing fields" }),
+                        { status: 400 }
+                    );
+                }
+
+                const created_on = Math.floor(Date.now() / 1000)
+
+                await env.DB.prepare(
+                    `INSERT INTO image_urls (description_id, image_url,created_on)
+           VALUES (?, ?, ?)`
+                )
+                    .bind(description_id, image_url, created_on)
+                    .run();
+
+                return new Response(
+                    JSON.stringify({ success: true }),
+                    { status: 200 }
+                );
+            } catch (err) {
+                console.error(err);
+                return new Response(
+                    JSON.stringify({ error: "Failed to insert image URL" }),
+                    { status: 500 }
+                );
+            }
+        }
 
         return new Response("Not Found", { status: 404, headers: corsHeaders });
     },

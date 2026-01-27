@@ -1,61 +1,66 @@
 import { useEffect, useState, useRef } from "react";
-import { supabase } from "../lib/supabaseClient";
 import { Navbar } from "@/layout/Navbar";
 import { Footer } from "@/layout/Footer";
 import { X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+
+const API_BASE = "https://ai-prompt-api.aipromptweb-caa.workers.dev";
 
 export const Upload = () => {
+  const navigate = useNavigate();
+
+  /* ---------- ACCESS ---------- */
   const [checkingAccess, setCheckingAccess] = useState(true);
   const [hasAccess, setHasAccess] = useState(false);
 
+  /* ---------- FORM ---------- */
   const [imageName, setImageName] = useState("");
   const [imageType, setImageType] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("");
 
+  /* ---------- FILES ---------- */
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [loading, setLoading] = useState(false);
-
-  // 🔥 Upload progress
   const [currentUploadingIndex, setCurrentUploadingIndex] = useState(0);
 
   const fileInputRef = useRef(null);
 
-  const CLOUDINARY_UPLOAD_URL = `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/image/upload`;
-
-  /* ---------- ACCESS CHECK ---------- */
+  /* =====================================================
+     AUTH CHECK (COOKIE → WORKER)
+     ===================================================== */
   useEffect(() => {
     const checkAccess = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      try {
+        const res = await fetch(`${API_BASE}/api/me`, {
+          credentials: "include",
+        });
 
-      if (!session) {
+        if (!res.ok) {
+          setHasAccess(false);
+        } else {
+          const user = await res.json();
+          setHasAccess(user.role === "admin");
+        }
+      } catch {
         setHasAccess(false);
+      } finally {
         setCheckingAccess(false);
-        return;
       }
-
-      const { data: profile, error } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", session.user.id)
-        .single();
-
-      setHasAccess(!error && profile?.role === "admin");
-      setCheckingAccess(false);
     };
 
     checkAccess();
   }, []);
 
-  /* ---------- ACCESS STATES ---------- */
+  /* =====================================================
+     ACCESS STATES
+     ===================================================== */
   if (checkingAccess) {
     return (
       <>
         <Navbar />
         <main className="min-h-screen py-32 flex items-center justify-center">
-          <p className="text-muted-foreground">Checking access...</p>
+          <p className="text-muted-foreground">Checking access…</p>
         </main>
         <Footer />
       </>
@@ -79,13 +84,17 @@ export const Upload = () => {
     );
   }
 
-  /* ---------- REMOVE IMAGE ---------- */
+  /* =====================================================
+     HELPERS
+     ===================================================== */
   const removeFile = (index) => {
     if (loading) return;
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  /* ---------- UPLOAD ---------- */
+  /* =====================================================
+     UPLOAD HANDLER (R2 + WORKER)
+     ===================================================== */
   const handleUpload = async () => {
     if (!imageName || !imageType || !description) {
       alert("Please fill all fields");
@@ -101,56 +110,75 @@ export const Upload = () => {
     setCurrentUploadingIndex(0);
 
     try {
-      const finalPriority = priority === "" ? 0 : Number(priority);
+      /* 1️⃣ Create description */
+      const descRes = await fetch(
+        "https://ai-prompt-api.aipromptweb-caa.workers.dev/api/description",
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            image_name: imageName,
+            image_type: imageType,
+            description_details: description,
+            priority: priority === "" ? 0 : Number(priority),
+          }),
+        }
+      );
 
-      // 1️⃣ Insert description
-      const { data: desc, error } = await supabase
-        .from("descriptions")
-        .insert({
-          image_name: imageName,
-          image_type: imageType,
-          description_details: description,
-          priority: finalPriority,
-          created_on: Date.now(),
-        })
-        .select("id")
-        .single();
+      if (!descRes.ok) throw new Error("Failed to create description");
 
-      if (error) throw error;
+      const { id: descriptionId } = await descRes.json();
 
-      // 2️⃣ Upload images one by one
+      /* 2️⃣ Upload images one by one */
       for (let i = 0; i < selectedFiles.length; i++) {
         setCurrentUploadingIndex(i + 1);
 
-        const file = selectedFiles[i];
         const formData = new FormData();
-        formData.append("file", file);
-        formData.append(
-          "upload_preset",
-          import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
+        formData.append("file", selectedFiles[i]);
+        formData.append("description_id", descriptionId);
+
+        const uploadRes = await fetch(
+          "https://ai-prompt-api.aipromptweb-caa.workers.dev/api/upload",
+          {
+            method: "POST",
+            credentials: "include",
+            body: formData,
+          }
         );
 
-        const res = await fetch(CLOUDINARY_UPLOAD_URL, {
-          method: "POST",
-          body: formData,
-        });
+        if (!uploadRes.ok) throw new Error("Image upload failed");
 
-        const uploaded = await res.json();
+        const { path } = await uploadRes.json(); // ✅ read ONCE
 
-        await supabase.from("image_urls").insert({
-          description_id: desc.id,
-          image_url: uploaded.secure_url,
-          created_on: Date.now(),
-        });
+        /* 3️⃣ Save image URL in DB */
+        const imageUrlRes = await fetch(
+          "https://ai-prompt-api.aipromptweb-caa.workers.dev/api/imageUrls",
+          {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              description_id: descriptionId,
+              image_url: path,
+            }),
+          }
+        );
+
+        if (!imageUrlRes.ok) {
+          throw new Error("Failed to save image URL");
+        }
       }
 
       alert("Upload successful ✅");
 
+      /* RESET */
       setImageName("");
       setImageType("");
       setDescription("");
       setPriority("");
       setSelectedFiles([]);
+
     } catch (err) {
       console.error(err);
       alert("Upload failed ❌");
@@ -163,17 +191,19 @@ export const Upload = () => {
   const progressPercent =
     selectedFiles.length > 0
       ? Math.round(
-          (currentUploadingIndex / selectedFiles.length) * 100
-        )
+        (currentUploadingIndex / selectedFiles.length) * 100
+      )
       : 0;
 
+  /* =====================================================
+     UI
+     ===================================================== */
   return (
     <>
       <Navbar />
 
       <main className="min-h-screen py-32 px-4 bg-background">
         <div className="max-w-3xl mx-auto space-y-6">
-
           <h1 className="text-3xl font-bold text-center">
             Upload Images (Admin)
           </h1>
@@ -183,37 +213,21 @@ export const Upload = () => {
             value={imageName}
             onChange={(e) => setImageName(e.target.value)}
             disabled={loading}
-            className="w-full px-4 py-3 rounded-xl border border-border"
+            className="w-full px-4 py-3 rounded-xl border"
           />
 
-          {/* SELECT TYPE */}
-          <div className="relative">
-            <select
-              value={imageType}
-              onChange={(e) => setImageType(e.target.value)}
-              disabled={loading}
-              className="w-full px-4 py-3 pr-12 rounded-xl border border-border
-                         bg-background appearance-none cursor-pointer"
-            >
-              <option value="" disabled>Select type</option>
-              <option value="men">Men</option>
-              <option value="women">Women</option>
-              <option value="kids">Kids</option>
-              <option value="other">Other</option>
-            </select>
-
-            <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center">
-              <svg
-                className="w-4 h-4 text-muted-foreground"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-              </svg>
-            </div>
-          </div>
+          <select
+            value={imageType}
+            onChange={(e) => setImageType(e.target.value)}
+            disabled={loading}
+            className="w-full px-4 py-3 rounded-xl border"
+          >
+            <option value="" disabled>Select type</option>
+            <option value="men">Men</option>
+            <option value="women">Women</option>
+            <option value="kids">Kids</option>
+            <option value="other">Other</option>
+          </select>
 
           <textarea
             rows={4}
@@ -221,7 +235,7 @@ export const Upload = () => {
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             disabled={loading}
-            className="w-full px-4 py-3 rounded-xl border border-border"
+            className="w-full px-4 py-3 rounded-xl border"
           />
 
           <input
@@ -229,19 +243,16 @@ export const Upload = () => {
             inputMode="numeric"
             placeholder="Priority (optional)"
             value={priority}
-            onChange={(e) =>
-              setPriority(e.target.value.replace(/\D/g, ""))
-            }
+            onChange={(e) => setPriority(e.target.value.replace(/\D/g, ""))}
             disabled={loading}
-            className="w-full px-4 py-3 rounded-xl border border-border"
+            className="w-full px-4 py-3 rounded-xl border"
           />
 
           {/* FILE PICKER */}
           <div
             onClick={() => !loading && fileInputRef.current.click()}
             className={`border-2 border-dashed p-8 rounded-xl text-center cursor-pointer
-              ${loading ? "opacity-50 cursor-not-allowed" : "hover:border-primary"}
-            `}
+              ${loading ? "opacity-50" : "hover:border-primary"}`}
           >
             Click to select images
             <input
@@ -256,20 +267,15 @@ export const Upload = () => {
             />
           </div>
 
-          {/* PREVIEWS */}
+          {/* PREVIEW */}
           {selectedFiles.length > 0 && (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
               {selectedFiles.map((file, index) => (
                 <div key={index} className="relative border rounded-xl p-2">
                   <img
                     src={URL.createObjectURL(file)}
-                    alt={file.name}
                     className="w-full h-32 object-cover rounded-lg"
                   />
-
-                  <p className="mt-1 text-xs truncate text-muted-foreground">
-                    {file.name}
-                  </p>
 
                   {!loading && (
                     <button
@@ -284,16 +290,15 @@ export const Upload = () => {
             </div>
           )}
 
-          {/* 🔥 UPLOAD PROGRESS */}
+          {/* PROGRESS */}
           {loading && (
             <div className="space-y-2">
-              <p className="text-sm text-muted-foreground text-center">
-                Uploading image {currentUploadingIndex} of {selectedFiles.length}
+              <p className="text-sm text-center text-muted-foreground">
+                Uploading {currentUploadingIndex} / {selectedFiles.length}
               </p>
-
               <div className="w-full h-2 bg-border rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-primary transition-all duration-300"
+                  className="h-full bg-primary"
                   style={{ width: `${progressPercent}%` }}
                 />
               </div>
@@ -303,12 +308,10 @@ export const Upload = () => {
           <button
             onClick={handleUpload}
             disabled={loading}
-            className="w-full py-3 rounded-xl bg-primary text-white font-semibold
-                       hover:opacity-90 disabled:opacity-50 transition"
+            className="w-full py-3 rounded-xl bg-primary text-white font-semibold"
           >
             {loading ? "Uploading..." : "Upload"}
           </button>
-
         </div>
       </main>
 
