@@ -1,48 +1,26 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { API_BASE } from "@/config/api";
 
 export const useAuth = () => {
   const [user, setUser] = useState(null);
-  const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setUser(data.session?.user ?? null);
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    if (!user) {
-      setRole(null);
-      setLoading(false);
-      return;
-    }
-
-    supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single()
-      .then(({ data }) => {
-        setRole(data?.role ?? "user");
+    fetch(`${API_BASE}/api/me`, {
+      credentials: "include",
+    })
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => {
+        setUser(data);
         setLoading(false);
-      });
-  }, [user]);
+      })
+      .catch(() => setLoading(false));
+  }, []);
 
   return {
     user,
-    role,
     isLoggedIn: !!user,
-    isAdmin: role === "admin",
+    isAdmin: user?.role === "admin",
     loading,
   };
 };

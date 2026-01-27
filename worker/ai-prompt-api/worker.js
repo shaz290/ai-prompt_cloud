@@ -1,22 +1,83 @@
+import { SignJWT, jwtVerify } from "jose";
+
+/* =====================================================
+   CORS CONFIG
+   ===================================================== */
+
 const allowedOrigins = [
     "https://ahsan-prompt.pages.dev",
-    "http://localhost:5173"
+    "http://localhost:5173",
 ];
 
 function getCorsHeaders(request) {
     const origin = request.headers.get("Origin");
-
     if (origin && allowedOrigins.includes(origin)) {
         return {
             "Access-Control-Allow-Origin": origin,
             "Access-Control-Allow-Credentials": "true",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Allow-Headers": "Content-Type",
             "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
         };
     }
-
     return {};
 }
+
+/* =====================================================
+   JWT HELPERS (WORKER SAFE)
+   ===================================================== */
+
+const encoder = new TextEncoder();
+
+async function signToken(user, env) {
+    return await new SignJWT({
+        email: user.email,
+        role: user.role,
+    })
+        .setProtectedHeader({ alg: "HS256" })
+        .setSubject(user.id)
+        .setIssuedAt()
+        .setExpirationTime("7d")
+        .sign(encoder.encode(env.JWT_SECRET));
+}
+
+async function verifyToken(token, env) {
+    const { payload } = await jwtVerify(
+        token,
+        encoder.encode(env.JWT_SECRET)
+    );
+
+    return {
+        id: payload.sub,
+        email: payload.email,
+        role: payload.role,
+    };
+}
+
+function getAuthToken(request) {
+    const cookie = request.headers.get("Cookie") || "";
+    return cookie
+        .split("; ")
+        .find(c => c.startsWith("auth="))
+        ?.split("=")[1];
+}
+
+/* =====================================================
+   PASSWORD HASH (SHA-256)
+   ===================================================== */
+
+async function hashPassword(password) {
+    const buffer = await crypto.subtle.digest(
+        "SHA-256",
+        new TextEncoder().encode(password)
+    );
+    return [...new Uint8Array(buffer)]
+        .map(b => b.toString(16).padStart(2, "0"))
+        .join("");
+}
+
+/* =====================================================
+   WORKER
+   ===================================================== */
 
 export default {
     async fetch(request, env) {
@@ -24,72 +85,161 @@ export default {
         const corsHeaders = getCorsHeaders(request);
 
         /* ===============================
-           PREFLIGHT (IMPORTANT)
+           PREFLIGHT
            =============================== */
         if (request.method === "OPTIONS") {
-            return new Response(null, {
-                status: 204,
-                headers: corsHeaders,
-            });
+            return new Response(null, { status: 204, headers: corsHeaders });
         }
 
         /* =====================================================
-           UPLOAD IMAGE → R2
-           POST /upload
+           SIGNUP
+           POST /api/signup
            ===================================================== */
-        if (request.method === "POST" && url.pathname === "/upload") {
+        if (request.method === "POST" && url.pathname === "/api/signup") {
             try {
-                const formData = await request.formData();
-                const file = formData.get("file");
+                const { email, password } = await request.json();
 
-                if (!file) {
-                    return new Response("File not found", {
-                        status: 400,
-                        headers: corsHeaders,
-                    });
+                if (!email || !password) {
+                    return new Response("Missing fields", { status: 400, headers: corsHeaders });
                 }
 
-                const ext = file.name.split(".").pop();
-                const imageName = crypto.randomUUID();
-                const objectKey = `${imageName}.${ext}`;
+                const exists = await env.DB
+                    .prepare("SELECT id FROM users WHERE email = ?")
+                    .bind(email)
+                    .first();
 
-                await env.R2.put(objectKey, file.stream(), {
-                    httpMetadata: {
-                        contentType: file.type,
+                if (exists) {
+                    return new Response("User already exists", { status: 409, headers: corsHeaders });
+                }
+
+                const id = crypto.randomUUID();
+                const passwordHash = await hashPassword(password);
+
+                await env.DB
+                    .prepare(`
+            INSERT INTO users (id, email, password_hash, role, status)
+            VALUES (?, ?, ?, 'user', 'active')
+          `)
+                    .bind(id, email, passwordHash)
+                    .run();
+
+                const token = await signToken({ id, email, role: "user" }, env);
+
+                return new Response(JSON.stringify({ success: true }), {
+                    status: 200,
+                    headers: {
+                        ...corsHeaders,
+                        "Content-Type": "application/json",
+                        "Set-Cookie": `auth=${token}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=604800`,
                     },
                 });
-
-                return new Response(
-                    JSON.stringify({
-                        success: true,
-                        image_name: imageName,
-                        image_url: `${env.R2_PUBLIC_URL}/${objectKey}`,
-                    }),
-                    {
-                        status: 200,
-                        headers: {
-                            ...corsHeaders,
-                            "Content-Type": "application/json",
-                            "Cache-Control": "no-store",
-                        },
-                    }
-                );
-            } catch (err) {
-                return new Response(
-                    JSON.stringify({ error: err.message }),
-                    {
-                        status: 500,
-                        headers: {
-                            ...corsHeaders,
-                            "Content-Type": "application/json",
-                        },
-                    }
-                );
+            } catch (e) {
+                return new Response(e.message, { status: 500, headers: corsHeaders });
             }
         }
 
         /* =====================================================
-           READ DATA FROM D1
+           LOGIN
+           POST /api/login
+           ===================================================== */
+        if (request.method === "POST" && url.pathname === "/api/login") {
+            try {
+                const { email, password } = await request.json();
+
+                const user = await env.DB
+                    .prepare(`
+            SELECT id, email, password_hash, role, status
+            FROM users WHERE email = ?
+          `)
+                    .bind(email)
+                    .first();
+
+                if (!user || user.status !== "active") {
+                    return new Response("Invalid credentials", { status: 401, headers: corsHeaders });
+                }
+
+                const passwordHash = await hashPassword(password);
+                if (passwordHash !== user.password_hash) {
+                    return new Response("Invalid credentials", { status: 401, headers: corsHeaders });
+                }
+
+                const token = await signToken(user, env);
+
+                return new Response(JSON.stringify({ success: true }), {
+                    status: 200,
+                    headers: {
+                        ...corsHeaders,
+                        "Content-Type": "application/json",
+                        "Set-Cookie": `auth=${token}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=604800`,
+                    },
+                });
+            } catch (e) {
+                return new Response(e.message, { status: 500, headers: corsHeaders });
+            }
+        }
+
+        /* =====================================================
+           CURRENT USER
+           GET /api/me
+           ===================================================== */
+        if (request.method === "GET" && url.pathname === "/api/me") {
+            try {
+                const token = getAuthToken(request);
+                if (!token) {
+                    return new Response(null, { status: 401, headers: corsHeaders });
+                }
+
+                const user = await verifyToken(token, env);
+
+                return new Response(JSON.stringify(user), {
+                    status: 200,
+                    headers: { ...corsHeaders, "Content-Type": "application/json" },
+                });
+            } catch {
+                return new Response(null, { status: 401, headers: corsHeaders });
+            }
+        }
+
+        /* =====================================================
+           LOGOUT
+           POST /api/logout
+           ===================================================== */
+        if (request.method === "POST" && url.pathname === "/api/logout") {
+            return new Response("ok", {
+                status: 200,
+                headers: {
+                    ...corsHeaders,
+                    "Set-Cookie": "auth=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0",
+                },
+            });
+        }
+
+        /* =====================================================
+           UPLOAD → R2
+           POST /upload
+           ===================================================== */
+        if (request.method === "POST" && url.pathname === "/upload") {
+            const formData = await request.formData();
+            const file = formData.get("file");
+            if (!file) return new Response("File missing", { status: 400, headers: corsHeaders });
+
+            const ext = file.name.split(".").pop();
+            const key = `${crypto.randomUUID()}.${ext}`;
+
+            await env.R2.put(key, file.stream(), {
+                httpMetadata: { contentType: file.type },
+            });
+
+            return new Response(
+                JSON.stringify({
+                    image_url: `${env.R2_PUBLIC_URL}/${key}`,
+                }),
+                { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+        }
+
+        /* =====================================================
+           DESCRIPTIONS
            GET /api/descriptions
            ===================================================== */
         if (request.method === "GET" && url.pathname === "/api/descriptions") {
@@ -181,12 +331,7 @@ export default {
             }
         }
 
-        /* =====================================================
-           FALLBACK
-           ===================================================== */
-        return new Response("Not Found", {
-            status: 404,
-            headers: corsHeaders,
-        });
+
+        return new Response("Not Found", { status: 404, headers: corsHeaders });
     },
 };
