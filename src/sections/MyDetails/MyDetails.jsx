@@ -57,8 +57,8 @@ export const MyDetails = () => {
                                     setCurrentPage(1);
                                 }}
                                 className={`px-4 py-2 rounded-xl capitalize transition ${activeFilter === filter
-                                        ? "bg-primary text-white"
-                                        : "border text-muted-foreground hover:bg-surface"
+                                    ? "bg-primary text-white"
+                                    : "border text-muted-foreground hover:bg-surface"
                                     }`}
                             >
                                 {filter}
@@ -83,7 +83,12 @@ export const MyDetails = () => {
 
                             <img
                                 src={item.image_urls?.[0]?.image_url}
-                                className="w-full aspect-[4/5] object-cover rounded-2xl"
+                                className="w-full aspect-[4/5] object-cover rounded-2xl
+                                border border-blue-500/30
+                                shadow-md shadow-blue-500/30
+                                hover:shadow-xl hover:shadow-blue-500/60
+                                hover:border-blue-500/50
+                                transition-all duration-300"
                                 alt={item.image_name}
                             />
 
@@ -112,6 +117,18 @@ export const MyDetails = () => {
                                     className="w-full py-2 bg-primary text-white rounded-xl"
                                 >
                                     Copy
+                                </button>
+
+                                <button
+                                    onClick={() => {
+                                        navigator.clipboard.writeText(
+                                            `${window.location.origin}?share=${item.id}`
+                                        );
+                                        showToast("Sharable link copied");
+                                    }}
+                                    className="w-full py-2 border rounded-xl"
+                                >
+                                    Share Link
                                 </button>
 
                                 {editingId === item.id ? (
