@@ -20,20 +20,32 @@ export const useMyDetails = () => {
     const [editingId, setEditingId] = useState(null);
     const [editValue, setEditValue] = useState("");
 
+    const [pageDetails, setPageDetails] = useState({
+        page: 1,
+        pageSize: PAGE_SIZE,
+        totalPages: 1,
+        totalRecords: 0,
+    });
+
     const sectionRef = useRef(null);
     const firstRender = useRef(true);
 
     /* ---------- INITIAL LOAD ---------- */
     useEffect(() => {
-        const init = async () => {
-            const id = getShareIdFromUrl();
-            if (id) setSharedId(id);
-
-            await fetchDetails();
-        };
-
-        init();
+        const id = getShareIdFromUrl();
+        if (id) {
+            setSharedId(id);
+            fetchDetails(1);
+        } else {
+            fetchDetails(currentPage);
+        }
     }, []);
+
+    /* ---------- FETCH ON PAGE CHANGE ---------- */
+    useEffect(() => {
+        if (sharedId) return;
+        fetchDetails(currentPage);
+    }, [currentPage]);
 
     /* ---------- SCROLL ON PAGINATION ---------- */
     useEffect(() => {
@@ -48,16 +60,6 @@ export const useMyDetails = () => {
         });
     }, [currentPage]);
 
-    /* ---------- SCROLL ON SHARED ---------- */
-    useEffect(() => {
-        if (sharedId && !loading) {
-            sectionRef.current?.scrollIntoView({
-                behavior: "smooth",
-                block: "start",
-            });
-        }
-    }, [sharedId, loading]);
-
     /* ---------- FETCH ---------- */
     const fetchDetails = async (page = 1) => {
         setLoading(true);
@@ -71,9 +73,9 @@ export const useMyDetails = () => {
 
             setData(result.data || []);
 
-            // optional: if you need pagination info
-            // setTotalPages(result.pagination.totalPages);
-
+            if (result.pagination) {
+                setPageDetails(result.pagination);
+            }
         } catch (err) {
             console.error("Fetch failed", err);
         }
@@ -158,16 +160,6 @@ export const useMyDetails = () => {
         return result;
     })();
 
-    /* ---------- PAGINATION ---------- */
-    const totalPages = Math.ceil(filteredData.length / PAGE_SIZE);
-
-    const paginatedData = sharedId
-        ? filteredData
-        : filteredData.slice(
-            (currentPage - 1) * PAGE_SIZE,
-            currentPage * PAGE_SIZE
-        );
-
     return {
         loading,
         sharedId,
@@ -178,8 +170,8 @@ export const useMyDetails = () => {
         toastMessage,
         activeIndex,
 
-        paginatedData,
-        totalPages,
+        paginatedData: filteredData,
+        totalPages: pageDetails.totalPages,
         sectionRef,
 
         setActiveFilter,

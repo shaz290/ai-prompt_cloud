@@ -1,6 +1,37 @@
+const allowedOrigins = [
+    "https://ahsan-prompt.pages.dev",
+    "http://localhost:5173"
+];
+
+function getCorsHeaders(request) {
+    const origin = request.headers.get("Origin");
+
+    if (origin && allowedOrigins.includes(origin)) {
+        return {
+            "Access-Control-Allow-Origin": origin,
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+        };
+    }
+
+    return {};
+}
+
 export default {
     async fetch(request, env) {
         const url = new URL(request.url);
+        const corsHeaders = getCorsHeaders(request);
+
+        /* ===============================
+           PREFLIGHT (IMPORTANT)
+           =============================== */
+        if (request.method === "OPTIONS") {
+            return new Response(null, {
+                status: 204,
+                headers: corsHeaders,
+            });
+        }
 
         /* =====================================================
            UPLOAD IMAGE → R2
@@ -12,7 +43,10 @@ export default {
                 const file = formData.get("file");
 
                 if (!file) {
-                    return new Response("File not found", { status: 400 });
+                    return new Response("File not found", {
+                        status: 400,
+                        headers: corsHeaders,
+                    });
                 }
 
                 const ext = file.name.split(".").pop();
@@ -34,6 +68,7 @@ export default {
                     {
                         status: 200,
                         headers: {
+                            ...corsHeaders,
                             "Content-Type": "application/json",
                             "Cache-Control": "no-store",
                         },
@@ -42,7 +77,13 @@ export default {
             } catch (err) {
                 return new Response(
                     JSON.stringify({ error: err.message }),
-                    { status: 500 }
+                    {
+                        status: 500,
+                        headers: {
+                            ...corsHeaders,
+                            "Content-Type": "application/json",
+                        },
+                    }
                 );
             }
         }
@@ -57,7 +98,6 @@ export default {
                 const pageSize = Number(url.searchParams.get("pageSize") || 7);
                 const offset = (page - 1) * pageSize;
 
-                /* ---------- TOTAL COUNT (for pagination UI) ---------- */
                 const totalResult = await env.DB
                     .prepare(`SELECT COUNT(*) as total FROM descriptions`)
                     .first();
@@ -65,27 +105,25 @@ export default {
                 const totalRecords = totalResult.total;
                 const totalPages = Math.ceil(totalRecords / pageSize);
 
-                /* ---------- PAGINATED DATA ---------- */
                 const { results } = await env.DB
                     .prepare(`
-                SELECT
-                    d.id,
-                    d.image_name,
-                    d.image_type,
-                    d.description_details,
-                    d.priority,
-                    d.created_on,
-                    i.image_url
-                FROM descriptions d
-                LEFT JOIN image_urls i
-                    ON i.description_id = d.id
-                ORDER BY d.created_on DESC
-                LIMIT ? OFFSET ?
-            `)
+                        SELECT
+                            d.id,
+                            d.image_name,
+                            d.image_type,
+                            d.description_details,
+                            d.priority,
+                            d.created_on,
+                            i.image_url
+                        FROM descriptions d
+                        LEFT JOIN image_urls i
+                            ON i.description_id = d.id
+                        ORDER BY d.created_on DESC
+                        LIMIT ? OFFSET ?
+                    `)
                     .bind(pageSize, offset)
                     .all();
 
-                /* ---------- GROUP IMAGES (Supabase-like shape) ---------- */
                 const map = new Map();
 
                 for (const row of results) {
@@ -97,13 +135,13 @@ export default {
                             description_details: row.description_details,
                             priority: row.priority,
                             created_on: row.created_on,
-                            image_urls: []
+                            image_urls: [],
                         });
                     }
 
                     if (row.image_url) {
                         map.get(row.id).image_urls.push({
-                            image_url: `${env.R2_PUBLIC_URL}/${row.image_url}`
+                            image_url: `${env.R2_PUBLIC_URL}/${row.image_url}`,
                         });
                     }
                 }
@@ -117,22 +155,28 @@ export default {
                             page,
                             pageSize,
                             totalRecords,
-                            totalPages
-                        }
+                            totalPages,
+                        },
                     }),
                     {
                         status: 200,
                         headers: {
+                            ...corsHeaders,
                             "Content-Type": "application/json",
-                            "Cache-Control": "no-store"
-                        }
+                            "Cache-Control": "no-store",
+                        },
                     }
                 );
-
             } catch (err) {
                 return new Response(
                     JSON.stringify({ error: err.message }),
-                    { status: 500 }
+                    {
+                        status: 500,
+                        headers: {
+                            ...corsHeaders,
+                            "Content-Type": "application/json",
+                        },
+                    }
                 );
             }
         }
@@ -140,6 +184,9 @@ export default {
         /* =====================================================
            FALLBACK
            ===================================================== */
-        return new Response("Not Found", { status: 404 });
+        return new Response("Not Found", {
+            status: 404,
+            headers: corsHeaders,
+        });
     },
 };

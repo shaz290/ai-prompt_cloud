@@ -57,8 +57,8 @@ export const MyDetails = () => {
                                     setCurrentPage(1);
                                 }}
                                 className={`px-4 py-2 rounded-xl capitalize transition ${activeFilter === filter
-                                    ? "bg-primary text-white"
-                                    : "border text-muted-foreground hover:bg-surface"
+                                        ? "bg-primary text-white"
+                                        : "border text-muted-foreground hover:bg-surface"
                                     }`}
                             >
                                 {filter}
@@ -83,27 +83,22 @@ export const MyDetails = () => {
 
                             <img
                                 src={item.image_urls?.[0]?.image_url}
-                                className="w-full aspect-[4/5] object-cover rounded-2xl
-                border border-blue-500/30
-                shadow-md shadow-blue-500/30
-                hover:shadow-xl hover:shadow-blue-500/60
-                hover:border-blue-500/50
-                transition-all duration-300"
+                                className="w-full aspect-[4/5] object-cover rounded-2xl"
                                 alt={item.image_name}
                             />
 
-                            <div className="flex justify-between text-xs text-muted-foreground">
-                                <span>{formatDate(item.created_on)}</span>
+                            <div className="text-xs text-muted-foreground">
+                                {formatDate(item.created_on)}
                             </div>
 
                             {editingId === item.id ? (
                                 <textarea
                                     value={editValue}
                                     onChange={(e) => setEditValue(e.target.value)}
-                                    className="description-scroll h-[96px] text-sm border rounded-xl p-2 resize-none"
+                                    className="h-[96px] text-sm border rounded-xl p-2 resize-none"
                                 />
                             ) : (
-                                <div className="description-scroll h-[96px] text-sm text-muted-foreground pr-1">
+                                <div className="h-[96px] text-sm text-muted-foreground overflow-auto">
                                     {item.description_details}
                                 </div>
                             )}
@@ -119,19 +114,6 @@ export const MyDetails = () => {
                                     Copy
                                 </button>
 
-                                <button
-                                    onClick={() => {
-                                        navigator.clipboard.writeText(
-                                            `${window.location.origin}?share=${item.id}`
-                                        );
-                                        showToast("Sharable link copied");
-                                    }}
-                                    className="w-full py-2 border rounded-xl"
-                                >
-                                    Share Link
-                                </button>
-
-                                {/* EDIT / DELETE (public) */}
                                 {editingId === item.id ? (
                                     <div className="flex gap-2">
                                         <button
@@ -164,7 +146,7 @@ export const MyDetails = () => {
 
                                 <button
                                     onClick={() => handleDelete(item)}
-                                    className="w-full py-2 border border-red-500 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition"
+                                    className="w-full py-2 border border-red-500 text-red-500 rounded-xl"
                                 >
                                     Delete
                                 </button>
@@ -199,7 +181,6 @@ export const MyDetails = () => {
                                         }
                                     />
                                 </div>
-
                             </div>
                         </div>
                     ))}
@@ -208,52 +189,45 @@ export const MyDetails = () => {
                 {/* PAGINATION */}
                 {!sharedId && totalPages > 1 && (
                     <div className="flex justify-center items-center gap-2 mt-16">
-
                         <button
                             onClick={() => setCurrentPage(1)}
                             disabled={currentPage === 1}
-                            className="px-4 py-2 rounded-xl text-sm bg-surface text-muted-foreground
-              hover:bg-primary/10 hover:text-primary disabled:opacity-40"
+                            className="px-4 py-2 rounded-xl text-sm disabled:opacity-40"
                         >
                             First
                         </button>
 
-                        {(() => {
-                            let start = Math.max(currentPage - 1, 1);
-                            let end = Math.min(start + 2, totalPages);
+                        <button
+                            onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                            disabled={currentPage === 1}
+                            className="px-4 py-2 rounded-xl text-sm disabled:opacity-40"
+                        >
+                            Prev
+                        </button>
 
-                            if (end - start < 2) {
-                                start = Math.max(end - 2, 1);
+                        <span className="px-4 py-2 text-sm">
+                            {currentPage} / {totalPages}
+                        </span>
+
+                        <button
+                            onClick={() =>
+                                setCurrentPage((p) => Math.min(p + 1, totalPages))
                             }
-
-                            return Array.from(
-                                { length: end - start + 1 },
-                                (_, i) => start + i
-                            ).map((page) => (
-                                <button
-                                    key={page}
-                                    onClick={() => setCurrentPage(page)}
-                                    className={`px-4 py-2 rounded-xl text-sm ${currentPage === page
-                                        ? "bg-primary text-white"
-                                        : "bg-surface text-muted-foreground hover:bg-primary/10 hover:text-primary"
-                                        }`}
-                                >
-                                    {page}
-                                </button>
-                            ));
-                        })()}
+                            disabled={currentPage === totalPages}
+                            className="px-4 py-2 rounded-xl text-sm disabled:opacity-40"
+                        >
+                            Next
+                        </button>
 
                         <button
                             onClick={() => setCurrentPage(totalPages)}
                             disabled={currentPage === totalPages}
-                            className="px-4 py-2 rounded-xl text-sm bg-surface text-muted-foreground
-              hover:bg-primary/10 hover:text-primary disabled:opacity-40"
+                            className="px-4 py-2 rounded-xl text-sm disabled:opacity-40"
                         >
-                            LastPage
+                            Last
                         </button>
                     </div>
                 )}
-
             </div>
         </section>
     );
