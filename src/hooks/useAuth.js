@@ -6,7 +6,7 @@ export const useAuth = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`${API_BASE}/api/me`, {
+    fetch(`https://ai-prompt-api.aipromptweb-caa.workers.dev/api/me`, {
       credentials: "include",
     })
       .then(res => (res.ok ? res.json() : null))
