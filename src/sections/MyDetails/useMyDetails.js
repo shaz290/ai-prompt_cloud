@@ -1,10 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import { supabase } from "../../lib/supabaseClient";
 import { PAGE_SIZE } from "./constants";
-import {
-    extractCloudinaryImageId,
-    getShareIdFromUrl,
-} from "./helpers";
+import { getShareIdFromUrl } from "./helpers";
+
+/* =====================================================
+   API BASE URL (TOP LEVEL – SAFE & SINGLE SOURCE)
+   ===================================================== */
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+if (!API_BASE_URL) {
+    throw new Error("VITE_API_BASE_URL is not defined");
+}
 
 export const useMyDetails = () => {
     const [data, setData] = useState([]);
@@ -30,7 +35,9 @@ export const useMyDetails = () => {
     const sectionRef = useRef(null);
     const firstRender = useRef(true);
 
-    /* ---------- INITIAL LOAD ---------- */
+    /* =====================================================
+       INITIAL LOAD
+       ===================================================== */
     useEffect(() => {
         const id = getShareIdFromUrl();
         if (id) {
@@ -39,15 +46,21 @@ export const useMyDetails = () => {
         } else {
             fetchDetails(currentPage);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    /* ---------- FETCH ON PAGE CHANGE ---------- */
+    /* =====================================================
+       FETCH ON PAGE CHANGE
+       ===================================================== */
     useEffect(() => {
         if (sharedId) return;
         fetchDetails(currentPage);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentPage]);
 
-    /* ---------- SCROLL ON PAGINATION ---------- */
+    /* =====================================================
+       SCROLL ON PAGINATION
+       ===================================================== */
     useEffect(() => {
         if (firstRender.current) {
             firstRender.current = false;
@@ -60,14 +73,18 @@ export const useMyDetails = () => {
         });
     }, [currentPage]);
 
-    /* ---------- FETCH ---------- */
+    /* =====================================================
+       FETCH DESCRIPTIONS
+       ===================================================== */
     const fetchDetails = async (page = 1) => {
         setLoading(true);
 
         try {
             const res = await fetch(
-                `https://ai-prompt-api.aipromptweb-caa.workers.dev/api/descriptions?page=${page}&pageSize=${PAGE_SIZE}`
+                `${API_BASE_URL}/api/descriptions?page=${page}&pageSize=${PAGE_SIZE}`
             );
+
+            if (!res.ok) throw new Error("Fetch failed");
 
             const result = await res.json();
 
@@ -78,14 +95,14 @@ export const useMyDetails = () => {
             }
         } catch (err) {
             console.error("Fetch failed", err);
+        } finally {
+            setLoading(false);
         }
-
-        setLoading(false);
     };
 
-    /* ---------- UPDATE ---------- */
-    const API_BASE = "https://ai-prompt-api.aipromptweb-caa.workers.dev";
-
+    /* =====================================================
+       UPDATE DESCRIPTION
+       ===================================================== */
     const handleUpdate = async (itemId) => {
         if (!editValue.trim()) {
             showToast("Description cannot be empty");
@@ -93,7 +110,7 @@ export const useMyDetails = () => {
         }
 
         try {
-            const res = await fetch(`${API_BASE}/api/description`, {
+            const res = await fetch(`${API_BASE_URL}/api/description`, {
                 method: "PUT",
                 credentials: "include",
                 headers: {
@@ -120,45 +137,57 @@ export const useMyDetails = () => {
             setEditingId(null);
             setEditValue("");
             showToast("Updated successfully");
-
         } catch (err) {
             console.error(err);
             showToast("Update failed");
         }
     };
 
-    /* ---------- DELETE ---------- */
+    /* =====================================================
+       DELETE DESCRIPTION
+       ===================================================== */
     const handleDelete = async (item) => {
         const confirmed = window.confirm(
             "Are you sure you want to delete this?\nThis cannot be undone."
         );
         if (!confirmed) return;
 
-        await fetch(
-            "https://ai-prompt-api.aipromptweb-caa.workers.dev/api/delete-description",
-            {
-                method: "POST",
-                credentials: "include",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    description_id: item.id,
-                }),
+        try {
+            const res = await fetch(
+                `${API_BASE_URL}/api/delete-description`,
+                {
+                    method: "POST",
+                    credentials: "include",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        description_id: item.id,
+                    }),
+                }
+            );
+
+            if (!res.ok) {
+                throw new Error("Delete failed");
             }
-        );
 
-
-        setData((prev) => prev.filter((d) => d.id !== item.id));
-        showToast("Deleted successfully");
+            setData((prev) => prev.filter((d) => d.id !== item.id));
+            showToast("Deleted successfully");
+        } catch (err) {
+            console.error(err);
+            showToast("Delete failed");
+        }
     };
 
-
-    /* ---------- TOAST ---------- */
+    /* =====================================================
+       TOAST
+       ===================================================== */
     const showToast = (msg) => {
         setToastMessage(msg);
         setTimeout(() => setToastMessage(""), 1500);
     };
 
-    /* ---------- FILTER ---------- */
+    /* =====================================================
+       FILTER
+       ===================================================== */
     const filteredData = (() => {
         let result = data;
 
@@ -175,6 +204,9 @@ export const useMyDetails = () => {
         return result;
     })();
 
+    /* =====================================================
+       RETURN
+       ===================================================== */
     return {
         loading,
         sharedId,
