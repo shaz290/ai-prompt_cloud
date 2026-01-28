@@ -29,6 +29,7 @@ export const useMyDetails = () => {
     }, []);
 
     const isAdmin = authDetails?.role === "admin";
+    const isLoggedIn = !!authDetails;
 
     /* ================= DATA ================= */
     const [data, setData] = useState([]);
@@ -209,6 +210,7 @@ export const useMyDetails = () => {
     /* ================= RETURN ================= */
     return {
         loading: loading || authLoading,
+        isLoggedIn,
         isAdmin,
         sharedId,
         activeFilter,

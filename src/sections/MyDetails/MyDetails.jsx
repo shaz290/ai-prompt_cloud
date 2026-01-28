@@ -7,6 +7,7 @@ import ImageSlider from "../../components/ImageSlider";
 export const MyDetails = () => {
     const {
         loading,
+        isLoggedIn,
         isAdmin,
         sharedId,
         activeFilter,
@@ -83,6 +84,7 @@ export const MyDetails = () => {
                     {paginatedData.map((item) => (
                         <div key={item.id} className="flex flex-col h-full space-y-4">
 
+                            {/* IMAGE */}
                             {item.image_urls?.length > 1 ? (
                                 <ImageSlider images={item.image_urls} alt={item.image_name} />
                             ) : (
@@ -93,92 +95,139 @@ export const MyDetails = () => {
                                 />
                             )}
 
+                            {/* DATE */}
                             <div className="text-xs text-muted-foreground">
                                 {formatDate(item.created_on)}
                             </div>
 
-                            {editingId === item.id ? (
-                                <textarea
-                                    value={editValue}
-                                    onChange={(e) => setEditValue(e.target.value)}
-                                    className="h-[96px] text-sm border rounded-xl p-2 resize-none"
-                                />
+                            {/* DESCRIPTION OR MESSAGE */}
+                            {isAdmin ? (
+                                editingId === item.id ? (
+                                    <textarea
+                                        value={editValue}
+                                        onChange={(e) => setEditValue(e.target.value)}
+                                        className="h-[96px] text-sm border rounded-xl p-2 resize-none"
+                                    />
+                                ) : (
+                                    <div className="h-[96px] text-sm text-muted-foreground overflow-auto">
+                                        {item.description_details}
+                                    </div>
+                                )
                             ) : (
-                                <div className="h-[96px] text-sm text-muted-foreground overflow-auto">
-                                    {item.description_details}
+                                <div
+                                    className="h-[96px] flex items-center justify-center rounded-xl
+                border border-emerald-400/30
+                bg-gradient-to-br from-emerald-400/10 to-transparent
+                text-center px-4"
+                                >
+                                    <p
+                                        className="text-sm font-medium text-emerald-500
+                  animate-pulse
+                  drop-shadow-[0_0_10px_rgba(16,185,129,0.6)]"
+                                    >
+                                        {!isLoggedIn
+                                            ? "Please Sign up and Login we are going to show the prompts soon"
+                                            : "✨ Thanks for logging in! Exciting prompts are coming your way soon."}
+                                    </p>
                                 </div>
                             )}
 
-                            <div className="mt-auto space-y-3">
-                                <button
-                                    onClick={() => {
-                                        navigator.clipboard.writeText(item.description_details);
-                                        showToast("Copied to clipboard");
-                                    }}
-                                    className="w-full py-2 bg-primary text-white rounded-xl"
-                                >
-                                    Copy
-                                </button>
+                            {/* ACTIONS — ADMIN ONLY */}
+                            {isAdmin && (
+                                <div className="mt-auto space-y-3">
 
-                                <button
-                                    onClick={() => {
-                                        navigator.clipboard.writeText(
-                                            `${window.location.origin}?share=${item.id}`
-                                        );
-                                        showToast("Sharable link copied");
-                                    }}
-                                    className="w-full py-2 border rounded-xl"
-                                >
-                                    Share Link
-                                </button>
+                                    {/* COPY */}
+                                    <button
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(item.description_details);
+                                            showToast("Copied to clipboard");
+                                        }}
+                                        className="w-full py-2 bg-primary text-white rounded-xl"
+                                    >
+                                        Copy
+                                    </button>
 
-                                {/* 🔒 ADMIN ONLY */}
-                                {isAdmin && (
-                                    <>
-                                        {editingId === item.id ? (
-                                            <div className="flex gap-2">
-                                                <button
-                                                    onClick={() => handleUpdate(item.id)}
-                                                    className="w-full py-2 bg-green-600 text-white rounded-xl"
-                                                >
-                                                    Save
-                                                </button>
-                                                <button
-                                                    onClick={() => {
-                                                        setEditingId(null);
-                                                        setEditValue("");
-                                                    }}
-                                                    className="w-full py-2 border rounded-xl"
-                                                >
-                                                    Cancel
-                                                </button>
-                                            </div>
-                                        ) : (
+                                    {/* SHARE */}
+                                    <button
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(
+                                                `${window.location.origin}?share=${item.id}`
+                                            );
+                                            showToast("Sharable link copied");
+                                        }}
+                                        className="w-full py-2 border rounded-xl"
+                                    >
+                                        Share Link
+                                    </button>
+
+                                    {/* EDIT / SAVE */}
+                                    {editingId === item.id ? (
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => handleUpdate(item.id)}
+                                                className="w-full py-2 bg-green-600 text-white rounded-xl"
+                                            >
+                                                Save
+                                            </button>
                                             <button
                                                 onClick={() => {
-                                                    setEditingId(item.id);
-                                                    setEditValue(item.description_details);
+                                                    setEditingId(null);
+                                                    setEditValue("");
                                                 }}
                                                 className="w-full py-2 border rounded-xl"
                                             >
-                                                Edit
+                                                Cancel
                                             </button>
-                                        )}
-
+                                        </div>
+                                    ) : (
                                         <button
-                                            onClick={() => handleDelete(item)}
-                                            className="w-full py-2 border border-red-500 text-red-500 rounded-xl"
+                                            onClick={() => {
+                                                setEditingId(item.id);
+                                                setEditValue(item.description_details);
+                                            }}
+                                            className="w-full py-2 border rounded-xl"
                                         >
-                                            Delete
+                                            Edit
                                         </button>
-                                    </>
-                                )}
+                                    )}
 
-                                <div className="flex justify-center gap-6 pt-2">
-                                    <SiGoogle onClick={() => window.open(`https://gemini.google.com/app?q=${encodeURIComponent(item.description_details)}`, "_blank")} />
-                                    <SiOpenai onClick={() => window.open("https://chat.openai.com/", "_blank")} />
-                                    <SiPerplexity onClick={() => window.open(`https://www.perplexity.ai/?q=${encodeURIComponent(item.description_details)}`, "_blank")} />
+                                    {/* DELETE */}
+                                    <button
+                                        onClick={() => handleDelete(item)}
+                                        className="w-full py-2 border border-red-500 text-red-500 rounded-xl"
+                                    >
+                                        Delete
+                                    </button>
                                 </div>
+                            )}
+
+                            {/* AI ICONS (always visible) */}
+                            <div className="flex justify-center gap-6 pt-2">
+                                <SiGoogle
+                                    onClick={() =>
+                                        window.open(
+                                            `https://gemini.google.com/app?q=${encodeURIComponent(
+                                                item.description_details
+                                            )}`,
+                                            "_blank"
+                                        )
+                                    }
+                                />
+                                <SiOpenai
+                                    onClick={() =>
+                                        window.open("https://chat.openai.com/", "_blank")
+                                    }
+                                />
+                                <SiPerplexity
+                                    onClick={() =>
+                                        window.open(
+                                            `https://www.perplexity.ai/?q=${encodeURIComponent(
+                                                item.description_details
+                                            )}`,
+                                            "_blank"
+                                        )
+                                    }
+                                />
                             </div>
                         </div>
                     ))}
@@ -187,11 +236,30 @@ export const MyDetails = () => {
                 {/* PAGINATION */}
                 {!sharedId && totalPages > 1 && (
                     <div className="flex justify-center items-center gap-2 mt-16">
-                        <button onClick={() => setCurrentPage(1)} disabled={currentPage === 1}>First</button>
-                        <button onClick={() => setCurrentPage(p => Math.max(p - 1, 1))} disabled={currentPage === 1}>Prev</button>
-                        <span>{currentPage} / {totalPages}</span>
-                        <button onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))} disabled={currentPage === totalPages}>Next</button>
-                        <button onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages}>Last</button>
+                        <button onClick={() => setCurrentPage(1)} disabled={currentPage === 1}>
+                            First
+                        </button>
+                        <button
+                            onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                            disabled={currentPage === 1}
+                        >
+                            Prev
+                        </button>
+                        <span>
+                            {currentPage} / {totalPages}
+                        </span>
+                        <button
+                            onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+                            disabled={currentPage === totalPages}
+                        >
+                            Next
+                        </button>
+                        <button
+                            onClick={() => setCurrentPage(totalPages)}
+                            disabled={currentPage === totalPages}
+                        >
+                            Last
+                        </button>
                     </div>
                 )}
             </div>
