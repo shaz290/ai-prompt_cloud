@@ -294,7 +294,6 @@ export default {
             }
         }
 
-
         /* =====================================================
            DESCRIPTIONS
            GET /api/descriptions
@@ -483,9 +482,9 @@ export default {
 
 
         /* =====================================================
-   IMAGE URLS
-   POST /api/imageUrls
-   ===================================================== */
+        IMAGE URLS
+        POST /api/imageUrls
+        ===================================================== */
         if (request.method === "POST" && url.pathname === "/api/imageUrls") {
             try {
                 /* ---------- AUTH ---------- */
@@ -565,9 +564,9 @@ export default {
 
 
         /* =====================================================
-      DELETE DESCRIPTION + R2 IMAGES
-      POST /api/delete-description
-      ===================================================== */
+        DELETE DESCRIPTION + R2 IMAGES
+        POST /api/delete-description
+        ===================================================== */
         if (request.method === "POST" && url.pathname === "/api/delete-description") {
             try {
                 /* ---------- AUTH ---------- */
@@ -677,9 +676,9 @@ export default {
         }
 
         /* =====================================================
-   UPDATE DESCRIPTION
-   PUT /api/description
-   ===================================================== */
+        UPDATE DESCRIPTION
+        PUT /api/description
+        ===================================================== */
         if (request.method === "PUT" && url.pathname === "/api/description") {
             try {
                 /* ---------- AUTH ---------- */
@@ -757,3 +756,4 @@ export default {
         return new Response("Not Found", { status: 404, headers: corsHeaders });
     },
 };
+
