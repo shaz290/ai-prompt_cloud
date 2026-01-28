@@ -131,7 +131,7 @@ export const MyDetails = () => {
                   drop-shadow-[0_0_10px_rgba(16,185,129,0.6)]"
                                     >
                                         {!isLoggedIn
-                                            ? "Please Sign up and Login we are going to show the prompts soon"
+                                            ? "Sign up or log in to be the first to access our upcoming prompts."
                                             : "✨ Thanks for logging in! Exciting prompts are coming your way soon."}
                                     </p>
                                 </div>

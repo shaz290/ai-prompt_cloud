@@ -298,121 +298,11 @@ export default {
            DESCRIPTIONS
            GET /api/descriptions
            ===================================================== */
-        // if (request.method === "GET" && url.pathname === "/api/descriptions") {
-        //     try {
-
-        //         const page = Number(url.searchParams.get("page") || 1);
-        //         const pageSize = Number(url.searchParams.get("pageSize") || 7);
-        //         const offset = (page - 1) * pageSize;
-
-        //         const totalResult = await env.DB
-        //             .prepare(`SELECT COUNT(*) as total FROM descriptions`)
-        //             .first();
-
-        //         const totalRecords = totalResult.total;
-        //         const totalPages = Math.ceil(totalRecords / pageSize);
-
-        //         const { results } = await env.DB
-        //             .prepare(`
-        //                 SELECT
-        //                     d.id,
-        //                     d.image_name,
-        //                     d.image_type,
-        //                     d.description_details,
-        //                     d.priority,
-        //                     d.created_on,
-        //                     i.image_url
-        //                 FROM descriptions d
-        //                 LEFT JOIN image_urls i
-        //                     ON i.description_id = d.id
-        //                 ORDER BY d.created_on DESC
-        //                 LIMIT ? OFFSET ?
-        //             `)
-        //             .bind(pageSize, offset)
-        //             .all();
-
-        //         const map = new Map();
-
-        //         for (const row of results) {
-        //             if (!map.has(row.id)) {
-        //                 map.set(row.id, {
-        //                     id: row.id,
-        //                     image_name: row.image_name,
-        //                     image_type: row.image_type,
-        //                     description_details: row.description_details,
-        //                     priority: row.priority,
-        //                     created_on: row.created_on,
-        //                     image_urls: [],
-        //                 });
-        //             }
-
-        //             if (row.image_url) {
-        //                 map.get(row.id).image_urls.push({
-        //                     image_url: `${env.R2_PUBLIC_URL}/${row.image_url}`,
-        //                 });
-        //             }
-        //         }
-
-        //         const data = Array.from(map.values());
-
-        //         return new Response(
-        //             JSON.stringify({
-        //                 data,
-        //                 pagination: {
-        //                     page,
-        //                     pageSize,
-        //                     totalRecords,
-        //                     totalPages,
-        //                 },
-        //             }),
-        //             {
-        //                 status: 200,
-        //                 headers: {
-        //                     ...corsHeaders,
-        //                     "Content-Type": "application/json",
-        //                     "Cache-Control": "no-store",
-        //                 },
-        //             }
-        //         );
-        //     } catch (err) {
-        //         return new Response(
-        //             JSON.stringify({ error: err.message }),
-        //             {
-        //                 status: 500,
-        //                 headers: {
-        //                     ...corsHeaders,
-        //                     "Content-Type": "application/json",
-        //                 },
-        //             }
-        //         );
-        //     }
-        // }
-
         if (request.method === "GET" && url.pathname === "/api/descriptions") {
-            const page = Number(url.searchParams.get("page") || 1);
-            const pageSize = Number(url.searchParams.get("pageSize") || 7);
-
-            const SHOULD_CACHE =
-                pageSize === 7 && page >= 1 && page <= 5; // 👈 ONLY FIRST 35 RECORDS
-
-            const cache = caches.default;
-            const cacheKey = new Request(url.toString(), request);
-
-            // ===============================
-            // 1️⃣ TRY CACHE (ONLY FOR PAGE 1–5)
-            // ===============================
-            if (SHOULD_CACHE) {
-                const cachedResponse = await cache.match(cacheKey);
-                if (cachedResponse) {
-                    console.log("return from cache");
-                    return cachedResponse;
-                }
-            }
-
-            // ===============================
-            // 2️⃣ DB FETCH
-            // ===============================
             try {
+
+                const page = Number(url.searchParams.get("page") || 1);
+                const pageSize = Number(url.searchParams.get("pageSize") || 7);
                 const offset = (page - 1) * pageSize;
 
                 const totalResult = await env.DB
@@ -424,20 +314,20 @@ export default {
 
                 const { results } = await env.DB
                     .prepare(`
-                SELECT
-                    d.id,
-                    d.image_name,
-                    d.image_type,
-                    d.description_details,
-                    d.priority,
-                    d.created_on,
-                    i.image_url
-                FROM descriptions d
-                LEFT JOIN image_urls i
-                    ON i.description_id = d.id
-                ORDER BY d.created_on DESC
-                LIMIT ? OFFSET ?
-            `)
+                        SELECT
+                            d.id,
+                            d.image_name,
+                            d.image_type,
+                            d.description_details,
+                            d.priority,
+                            d.created_on,
+                            i.image_url
+                        FROM descriptions d
+                        LEFT JOIN image_urls i
+                            ON i.description_id = d.id
+                        ORDER BY d.created_on DESC
+                        LIMIT ? OFFSET ?
+                    `)
                     .bind(pageSize, offset)
                     .all();
 
@@ -465,7 +355,7 @@ export default {
 
                 const data = Array.from(map.values());
 
-                const response = new Response(
+                return new Response(
                     JSON.stringify({
                         data,
                         pagination: {
@@ -480,23 +370,10 @@ export default {
                         headers: {
                             ...corsHeaders,
                             "Content-Type": "application/json",
-
-                            // ✅ CACHE ONLY FIRST 5 PAGES
-                            "Cache-Control": SHOULD_CACHE
-                                ? "public, max-age=0, s-maxage=600, stale-while-revalidate=120"
-                                : "no-store",
+                            "Cache-Control": "no-store",
                         },
                     }
                 );
-
-                // ===============================
-                // 3️⃣ SAVE TO CACHE (ONLY PAGE 1–5)
-                // ===============================
-                if (SHOULD_CACHE) {
-                    ctx.waitUntil(cache.put(cacheKey, response.clone()));
-                }
-                console.log("return from DB");
-                return response;
             } catch (err) {
                 return new Response(
                     JSON.stringify({ error: err.message }),
@@ -510,6 +387,133 @@ export default {
                 );
             }
         }
+
+        //     if (request.method === "GET" && url.pathname === "/api/descriptions") {
+        //         const page = Number(url.searchParams.get("page") || 1);
+        //         const pageSize = Number(url.searchParams.get("pageSize") || 7);
+
+        //         const SHOULD_CACHE =
+        //             pageSize === 7 && page >= 1 && page <= 5; // 👈 ONLY FIRST 35 RECORDS
+
+        //         const cache = caches.default;
+        //         const cacheKey = new Request(url.toString(), request);
+
+        //         // ===============================
+        //         // 1️⃣ TRY CACHE (ONLY FOR PAGE 1–5)
+        //         // ===============================
+        //         if (SHOULD_CACHE) {
+        //             const cachedResponse = await cache.match(cacheKey);
+        //             if (cachedResponse) {
+        //                 console.log("return from cache");
+        //                 return cachedResponse;
+        //             }
+        //         }
+
+        //         // ===============================
+        //         // 2️⃣ DB FETCH
+        //         // ===============================
+        //         try {
+        //             const offset = (page - 1) * pageSize;
+
+        //             const totalResult = await env.DB
+        //                 .prepare(`SELECT COUNT(*) as total FROM descriptions`)
+        //                 .first();
+
+        //             const totalRecords = totalResult.total;
+        //             const totalPages = Math.ceil(totalRecords / pageSize);
+
+        //             const { results } = await env.DB
+        //                 .prepare(`
+        //     SELECT
+        //         d.id,
+        //         d.image_name,
+        //         d.image_type,
+        //         d.description_details,
+        //         d.priority,
+        //         d.created_on,
+        //         i.image_url
+        //     FROM (
+        //         SELECT id, image_name, image_type, description_details, priority, created_on
+        //         FROM descriptions
+        //         ORDER BY created_on DESC
+        //         LIMIT ? OFFSET ?
+        //     ) d
+        //     LEFT JOIN image_urls i
+        //         ON i.description_id = d.id
+        //     ORDER BY d.created_on DESC
+        // `)
+        //                 .bind(pageSize, offset)
+        //                 .all();
+
+        //             const map = new Map();
+
+        //             for (const row of results) {
+        //                 if (!map.has(row.id)) {
+        //                     map.set(row.id, {
+        //                         id: row.id,
+        //                         image_name: row.image_name,
+        //                         image_type: row.image_type,
+        //                         description_details: row.description_details,
+        //                         priority: row.priority,
+        //                         created_on: row.created_on,
+        //                         image_urls: [],
+        //                     });
+        //                 }
+
+        //                 if (row.image_url) {
+        //                     map.get(row.id).image_urls.push({
+        //                         image_url: `${env.R2_PUBLIC_URL}/${row.image_url}`,
+        //                     });
+        //                 }
+        //             }
+
+        //             const data = Array.from(map.values());
+
+        //             const response = new Response(
+        //                 JSON.stringify({
+        //                     data,
+        //                     pagination: {
+        //                         page,
+        //                         pageSize,
+        //                         totalRecords,
+        //                         totalPages,
+        //                     },
+        //                 }),
+        //                 {
+        //                     status: 200,
+        //                     headers: {
+        //                         ...corsHeaders,
+        //                         "Content-Type": "application/json",
+
+        //                         // ✅ CACHE ONLY FIRST 5 PAGES
+        //                         "Cache-Control": SHOULD_CACHE
+        //                             ? "public, max-age=0, s-maxage=600, stale-while-revalidate=120"
+        //                             : "no-store",
+        //                     },
+        //                 }
+        //             );
+
+        //             // ===============================
+        //             // 3️⃣ SAVE TO CACHE (ONLY PAGE 1–5)
+        //             // ===============================
+        //             if (SHOULD_CACHE) {
+        //                 ctx.waitUntil(cache.put(cacheKey, response.clone()));
+        //             }
+        //             console.log("return from DB");
+        //             return response;
+        //         } catch (err) {
+        //             return new Response(
+        //                 JSON.stringify({ error: err.message }),
+        //                 {
+        //                     status: 500,
+        //                     headers: {
+        //                         ...corsHeaders,
+        //                         "Content-Type": "application/json",
+        //                     },
+        //                 }
+        //             );
+        //         }
+        //     }
 
 
         /* =====================================================
@@ -577,19 +581,6 @@ export default {
                     .run();
 
                 const id = result.meta.last_row_id;
-
-                /* =====================================================
-          🧹 CACHE INVALIDATION (FIRST 35 RECORDS)
-          ===================================================== */
-                const cache = caches.default;
-
-                for (let page = 1; page <= 5; page++) {
-                    const cacheUrl = `${env.API_BASE_URL}/api/descriptions?page=${page}&pageSize=7`;
-                    const cacheKey = new Request(cacheUrl);
-
-                    // fire-and-forget
-                    await cache.delete(cacheKey);
-                }
 
                 /* ---------- RESPONSE ---------- */
                 return new Response(
@@ -785,17 +776,6 @@ export default {
                     .bind(description_id)
                     .run();
 
-                const cache = caches.default;
-
-                for (let page = 1; page <= 5; page++) {
-                    const cacheUrl = `${env.API_BASE_URL}/api/descriptions?page=${page}&pageSize=7`;
-                    const cacheKey = new Request(cacheUrl);
-
-                    // fire-and-forget
-                    await cache.delete(cacheKey);
-                }
-
-
                 /* ---------- RESPONSE ---------- */
                 return new Response(
                     JSON.stringify({ success: true }),
@@ -871,16 +851,6 @@ export default {
         `)
                     .bind(description_details.trim(), id)
                     .run();
-
-                const cache = caches.default;
-
-                for (let page = 1; page <= 5; page++) {
-                    const cacheUrl = `${env.API_BASE_URL}/api/descriptions?page=${page}&pageSize=7`;
-                    const cacheKey = new Request(cacheUrl);
-
-                    // fire-and-forget
-                    await cache.delete(cacheKey);
-                }
 
 
                 /* ---------- RESPONSE ---------- */
