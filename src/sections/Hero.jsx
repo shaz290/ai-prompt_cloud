@@ -47,8 +47,8 @@ export const Hero = () => {
       <div className="container mx-auto px-6 pt-32 pb-20 relative z-10">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
 
-          {/* TEXT */}
-          <div className="space-y-8">
+          {/* LEFT CONTENT */}
+          <div className="space-y-8">            {/* ROLE TAG */}
             <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass text-sm text-primary">
               <span className="w-2 h-2 bg-primary rounded-full animate-pulse" />
               AI Prompt Expert & Content Creator
@@ -69,7 +69,7 @@ export const Hero = () => {
               videos for social platforms.
             </p>
 
-            {/* ✅ CUSTOM CONTACT BUTTON */}
+            {/* CONTACT BUTTON */}
             <div className="flex gap-4">
               <button
                 onClick={scrollToContact}
@@ -96,10 +96,20 @@ export const Hero = () => {
 
             {/* SOCIAL ICONS */}
             <div className="flex gap-4 pt-2">
-              {[Instagram, Facebook, Youtube, Twitter].map((Icon, idx) => (
+              {[
+                {
+                  Icon: Instagram,
+                  link: "https://www.instagram.com/af4ash?igsh=MXI1M2h1bWFvYTZkbA==",
+                },
+                { Icon: Facebook, link: "#" },
+                { Icon: Youtube, link: "#" },
+                { Icon: Twitter, link: "#" },
+              ].map(({ Icon, link }, idx) => (
                 <a
                   key={idx}
-                  href="#"
+                  href={link}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="p-2 rounded-full glass hover:text-primary transition"
                 >
                   <Icon className="w-5 h-5" />
@@ -108,7 +118,7 @@ export const Hero = () => {
             </div>
           </div>
 
-          {/* IMAGE */}
+          {/* RIGHT IMAGE */}
           <div className="relative">
             <div className="absolute inset-0 rounded-3xl bg-primary/20 blur-2xl" />
             <div className="relative glass rounded-3xl p-2 glow-border">
