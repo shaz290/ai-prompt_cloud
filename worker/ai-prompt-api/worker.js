@@ -314,20 +314,24 @@ export default {
 
                 const { results } = await env.DB
                     .prepare(`
-                        SELECT
-                            d.id,
-                            d.image_name,
-                            d.image_type,
-                            d.description_details,
-                            d.priority,
-                            d.created_on,
-                            i.image_url
-                        FROM descriptions d
-                        LEFT JOIN image_urls i
-                            ON i.description_id = d.id
-                        ORDER BY d.created_on DESC
-                        LIMIT ? OFFSET ?
-                    `)
+            SELECT
+                d.id,
+                d.image_name,
+                d.image_type,
+                d.description_details,
+                d.priority,
+                d.created_on,
+                i.image_url
+            FROM (
+                SELECT id, image_name, image_type, description_details, priority, created_on
+                FROM descriptions
+                ORDER BY created_on DESC
+                LIMIT ? OFFSET ?
+            ) d
+            LEFT JOIN image_urls i
+                ON i.description_id = d.id
+            ORDER BY d.created_on DESC
+        `)
                     .bind(pageSize, offset)
                     .all();
 
