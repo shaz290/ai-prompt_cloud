@@ -3,7 +3,7 @@ import { PAGE_SIZE } from "./constants";
 import { getShareIdFromUrl } from "./helpers";
 
 /* =====================================================
-   API BASE URL (TOP LEVEL – SAFE & SINGLE SOURCE)
+   API BASE URL
    ===================================================== */
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -12,11 +12,29 @@ if (!API_BASE_URL) {
 }
 
 export const useMyDetails = () => {
+    /* ================= AUTH ================= */
+    const [authDetails, setAuthDetails] = useState(null);
+    const [authLoading, setAuthLoading] = useState(true);
+
+    useEffect(() => {
+        fetch("https://ai-prompt-api.aipromptweb-caa.workers.dev/api/me", {
+            credentials: "include",
+        })
+            .then((res) => (res.ok ? res.json() : null))
+            .then((data) => {
+                setAuthDetails(data);
+                setAuthLoading(false);
+            })
+            .catch(() => setAuthLoading(false));
+    }, []);
+
+    const isAdmin = authDetails?.role === "admin";
+
+    /* ================= DATA ================= */
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(true);
 
     const [currentPage, setCurrentPage] = useState(1);
-    const [activeIndex, setActiveIndex] = useState({});
     const [toastMessage, setToastMessage] = useState("");
 
     const [sharedId, setSharedId] = useState(null);
@@ -35,10 +53,10 @@ export const useMyDetails = () => {
     const sectionRef = useRef(null);
     const firstRender = useRef(true);
 
-    /* =====================================================
-       INITIAL LOAD
-       ===================================================== */
+    /* ================= INITIAL LOAD ================= */
     useEffect(() => {
+        if (authLoading) return;
+
         const id = getShareIdFromUrl();
         if (id) {
             setSharedId(id);
@@ -47,20 +65,16 @@ export const useMyDetails = () => {
             fetchDetails(currentPage);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [authLoading]);
 
-    /* =====================================================
-       FETCH ON PAGE CHANGE
-       ===================================================== */
+    /* ================= PAGE CHANGE ================= */
     useEffect(() => {
         if (sharedId) return;
         fetchDetails(currentPage);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentPage]);
 
-    /* =====================================================
-       SCROLL ON PAGINATION
-       ===================================================== */
+    /* ================= SCROLL ================= */
     useEffect(() => {
         if (firstRender.current) {
             firstRender.current = false;
@@ -73,9 +87,7 @@ export const useMyDetails = () => {
         });
     }, [currentPage]);
 
-    /* =====================================================
-       FETCH DESCRIPTIONS
-       ===================================================== */
+    /* ================= FETCH ================= */
     const fetchDetails = async (page = 1) => {
         setLoading(true);
 
@@ -87,23 +99,25 @@ export const useMyDetails = () => {
             if (!res.ok) throw new Error("Fetch failed");
 
             const result = await res.json();
-
             setData(result.data || []);
 
             if (result.pagination) {
                 setPageDetails(result.pagination);
             }
         } catch (err) {
-            console.error("Fetch failed", err);
+            console.error(err);
         } finally {
             setLoading(false);
         }
     };
 
-    /* =====================================================
-       UPDATE DESCRIPTION
-       ===================================================== */
+    /* ================= UPDATE ================= */
     const handleUpdate = async (itemId) => {
+        if (!isAdmin) {
+            showToast("Not authorized");
+            return;
+        }
+
         if (!editValue.trim()) {
             showToast("Description cannot be empty");
             return;
@@ -113,18 +127,14 @@ export const useMyDetails = () => {
             const res = await fetch(`${API_BASE_URL}/api/description`, {
                 method: "PUT",
                 credentials: "include",
-                headers: {
-                    "Content-Type": "application/json",
-                },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     id: itemId,
                     description_details: editValue,
                 }),
             });
 
-            if (!res.ok) {
-                throw new Error("Update failed");
-            }
+            if (!res.ok) throw new Error("Update failed");
 
             setData((prev) =>
                 prev.map((d) =>
@@ -137,57 +147,49 @@ export const useMyDetails = () => {
             setEditingId(null);
             setEditValue("");
             showToast("Updated successfully");
-        } catch (err) {
-            console.error(err);
+        } catch {
             showToast("Update failed");
         }
     };
 
-    /* =====================================================
-       DELETE DESCRIPTION
-       ===================================================== */
+    /* ================= DELETE ================= */
     const handleDelete = async (item) => {
+        if (!isAdmin) {
+            showToast("Not authorized");
+            return;
+        }
+
         const confirmed = window.confirm(
             "Are you sure you want to delete this?\nThis cannot be undone."
         );
         if (!confirmed) return;
 
         try {
-            const res = await fetch(
-                `${API_BASE_URL}/api/delete-description`,
-                {
-                    method: "POST",
-                    credentials: "include",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        description_id: item.id,
-                    }),
-                }
-            );
+            const res = await fetch(`${API_BASE_URL}/api/delete-description`, {
+                method: "POST",
+                credentials: "include",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    description_id: item.id,
+                }),
+            });
 
-            if (!res.ok) {
-                throw new Error("Delete failed");
-            }
+            if (!res.ok) throw new Error("Delete failed");
 
             setData((prev) => prev.filter((d) => d.id !== item.id));
             showToast("Deleted successfully");
-        } catch (err) {
-            console.error(err);
+        } catch {
             showToast("Delete failed");
         }
     };
 
-    /* =====================================================
-       TOAST
-       ===================================================== */
+    /* ================= TOAST ================= */
     const showToast = (msg) => {
         setToastMessage(msg);
         setTimeout(() => setToastMessage(""), 1500);
     };
 
-    /* =====================================================
-       FILTER
-       ===================================================== */
+    /* ================= FILTER ================= */
     const filteredData = (() => {
         let result = data;
 
@@ -204,19 +206,16 @@ export const useMyDetails = () => {
         return result;
     })();
 
-    /* =====================================================
-       RETURN
-       ===================================================== */
+    /* ================= RETURN ================= */
     return {
-        loading,
+        loading: loading || authLoading,
+        isAdmin,
         sharedId,
         activeFilter,
         currentPage,
         editingId,
         editValue,
         toastMessage,
-        activeIndex,
-
         paginatedData: filteredData,
         totalPages: pageDetails.totalPages,
         sectionRef,
@@ -225,7 +224,6 @@ export const useMyDetails = () => {
         setCurrentPage,
         setEditingId,
         setEditValue,
-        setActiveIndex,
 
         handleUpdate,
         handleDelete,

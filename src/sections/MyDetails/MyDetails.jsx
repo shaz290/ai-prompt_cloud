@@ -7,6 +7,7 @@ import ImageSlider from "../../components/ImageSlider";
 export const MyDetails = () => {
     const {
         loading,
+        isAdmin,
         sharedId,
         activeFilter,
         currentPage,
@@ -82,26 +83,16 @@ export const MyDetails = () => {
                     {paginatedData.map((item) => (
                         <div key={item.id} className="flex flex-col h-full space-y-4">
 
-                            <div>
-                                {item.image_urls?.length > 1 ? (
-                                    <ImageSlider
-                                        images={item.image_urls}
-                                        alt={item.image_name}
-                                    />
-                                ) : (
-                                    <img
-                                        src={item.image_urls?.[0]?.image_url}
-                                        alt={item.image_name}
-                                        className="w-full aspect-[4/5] object-cover rounded-2xl
-                                        border border-blue-500/30
-                                        shadow-md shadow-blue-500/30
-                                        hover:shadow-xl hover:shadow-blue-500/60
-                                        hover:border-blue-500/50
-                                        transition-all duration-300"
-                                    />
-                                )}
+                            {item.image_urls?.length > 1 ? (
+                                <ImageSlider images={item.image_urls} alt={item.image_name} />
+                            ) : (
+                                <img
+                                    src={item.image_urls?.[0]?.image_url}
+                                    alt={item.image_name}
+                                    className="w-full aspect-[4/5] object-cover rounded-2xl"
+                                />
+                            )}
 
-                            </div>
                             <div className="text-xs text-muted-foreground">
                                 {formatDate(item.created_on)}
                             </div>
@@ -141,72 +132,52 @@ export const MyDetails = () => {
                                     Share Link
                                 </button>
 
-                                {editingId === item.id ? (
-                                    <div className="flex gap-2">
+                                {/* 🔒 ADMIN ONLY */}
+                                {isAdmin && (
+                                    <>
+                                        {editingId === item.id ? (
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={() => handleUpdate(item.id)}
+                                                    className="w-full py-2 bg-green-600 text-white rounded-xl"
+                                                >
+                                                    Save
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        setEditingId(null);
+                                                        setEditValue("");
+                                                    }}
+                                                    className="w-full py-2 border rounded-xl"
+                                                >
+                                                    Cancel
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <button
+                                                onClick={() => {
+                                                    setEditingId(item.id);
+                                                    setEditValue(item.description_details);
+                                                }}
+                                                className="w-full py-2 border rounded-xl"
+                                            >
+                                                Edit
+                                            </button>
+                                        )}
+
                                         <button
-                                            onClick={() => handleUpdate(item.id)}
-                                            className="w-full py-2 bg-green-600 text-white rounded-xl"
+                                            onClick={() => handleDelete(item)}
+                                            className="w-full py-2 border border-red-500 text-red-500 rounded-xl"
                                         >
-                                            Save
+                                            Delete
                                         </button>
-                                        <button
-                                            onClick={() => {
-                                                setEditingId(null);
-                                                setEditValue("");
-                                            }}
-                                            className="w-full py-2 border rounded-xl"
-                                        >
-                                            Cancel
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <button
-                                        onClick={() => {
-                                            setEditingId(item.id);
-                                            setEditValue(item.description_details);
-                                        }}
-                                        className="w-full py-2 border rounded-xl"
-                                    >
-                                        Edit
-                                    </button>
+                                    </>
                                 )}
 
-                                <button
-                                    onClick={() => handleDelete(item)}
-                                    className="w-full py-2 border border-red-500 text-red-500 rounded-xl"
-                                >
-                                    Delete
-                                </button>
-
                                 <div className="flex justify-center gap-6 pt-2">
-                                    <SiGoogle
-                                        className="cursor-pointer"
-                                        onClick={() =>
-                                            window.open(
-                                                `https://gemini.google.com/app?q=${encodeURIComponent(
-                                                    item.description_details
-                                                )}`,
-                                                "_blank"
-                                            )
-                                        }
-                                    />
-                                    <SiOpenai
-                                        className="cursor-pointer"
-                                        onClick={() =>
-                                            window.open("https://chat.openai.com/", "_blank")
-                                        }
-                                    />
-                                    <SiPerplexity
-                                        className="cursor-pointer"
-                                        onClick={() =>
-                                            window.open(
-                                                `https://www.perplexity.ai/?q=${encodeURIComponent(
-                                                    item.description_details
-                                                )}`,
-                                                "_blank"
-                                            )
-                                        }
-                                    />
+                                    <SiGoogle onClick={() => window.open(`https://gemini.google.com/app?q=${encodeURIComponent(item.description_details)}`, "_blank")} />
+                                    <SiOpenai onClick={() => window.open("https://chat.openai.com/", "_blank")} />
+                                    <SiPerplexity onClick={() => window.open(`https://www.perplexity.ai/?q=${encodeURIComponent(item.description_details)}`, "_blank")} />
                                 </div>
                             </div>
                         </div>
@@ -216,43 +187,11 @@ export const MyDetails = () => {
                 {/* PAGINATION */}
                 {!sharedId && totalPages > 1 && (
                     <div className="flex justify-center items-center gap-2 mt-16">
-                        <button
-                            onClick={() => setCurrentPage(1)}
-                            disabled={currentPage === 1}
-                            className="px-4 py-2 rounded-xl text-sm disabled:opacity-40"
-                        >
-                            First
-                        </button>
-
-                        <button
-                            onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-                            disabled={currentPage === 1}
-                            className="px-4 py-2 rounded-xl text-sm disabled:opacity-40"
-                        >
-                            Prev
-                        </button>
-
-                        <span className="px-4 py-2 text-sm">
-                            {currentPage} / {totalPages}
-                        </span>
-
-                        <button
-                            onClick={() =>
-                                setCurrentPage((p) => Math.min(p + 1, totalPages))
-                            }
-                            disabled={currentPage === totalPages}
-                            className="px-4 py-2 rounded-xl text-sm disabled:opacity-40"
-                        >
-                            Next
-                        </button>
-
-                        <button
-                            onClick={() => setCurrentPage(totalPages)}
-                            disabled={currentPage === totalPages}
-                            className="px-4 py-2 rounded-xl text-sm disabled:opacity-40"
-                        >
-                            Last
-                        </button>
+                        <button onClick={() => setCurrentPage(1)} disabled={currentPage === 1}>First</button>
+                        <button onClick={() => setCurrentPage(p => Math.max(p - 1, 1))} disabled={currentPage === 1}>Prev</button>
+                        <span>{currentPage} / {totalPages}</span>
+                        <button onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))} disabled={currentPage === totalPages}>Next</button>
+                        <button onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages}>Last</button>
                     </div>
                 )}
             </div>
