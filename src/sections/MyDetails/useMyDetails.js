@@ -84,18 +84,31 @@ export const useMyDetails = () => {
     };
 
     /* ---------- UPDATE ---------- */
+    const API_BASE = "https://ai-prompt-api.aipromptweb-caa.workers.dev";
+
     const handleUpdate = async (itemId) => {
         if (!editValue.trim()) {
             showToast("Description cannot be empty");
             return;
         }
 
-        const { error } = await supabase
-            .from("descriptions")
-            .update({ description_details: editValue })
-            .eq("id", itemId);
+        try {
+            const res = await fetch(`${API_BASE}/api/description`, {
+                method: "PUT",
+                credentials: "include",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    id: itemId,
+                    description_details: editValue,
+                }),
+            });
 
-        if (!error) {
+            if (!res.ok) {
+                throw new Error("Update failed");
+            }
+
             setData((prev) =>
                 prev.map((d) =>
                     d.id === itemId
@@ -103,10 +116,13 @@ export const useMyDetails = () => {
                         : d
                 )
             );
+
             setEditingId(null);
             setEditValue("");
             showToast("Updated successfully");
-        } else {
+
+        } catch (err) {
+            console.error(err);
             showToast("Update failed");
         }
     };
@@ -118,24 +134,23 @@ export const useMyDetails = () => {
         );
         if (!confirmed) return;
 
-        await supabase.from("descriptions").delete().eq("id", item.id);
-
-        const imageIds =
-            item.image_urls
-                ?.map((img) => extractCloudinaryImageId(img.image_url))
-                .filter(Boolean) || [];
-
-        if (imageIds.length > 0) {
-            await fetch("/api/delete-cloudflare-images", {
+        await fetch(
+            "https://ai-prompt-api.aipromptweb-caa.workers.dev/api/delete-description",
+            {
                 method: "POST",
+                credentials: "include",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ imageIds }),
-            });
-        }
+                body: JSON.stringify({
+                    description_id: item.id,
+                }),
+            }
+        );
+
 
         setData((prev) => prev.filter((d) => d.id !== item.id));
         showToast("Deleted successfully");
     };
+
 
     /* ---------- TOAST ---------- */
     const showToast = (msg) => {

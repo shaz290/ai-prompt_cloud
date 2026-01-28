@@ -430,7 +430,7 @@ export default {
                 }
 
                 /* ---------- REQUIRED FIELD ---------- */
-                const created_on = Math.floor(Date.now() / 1000); // ✅ UNIX seconds
+                const created_on = Date.now();
 
                 /* ---------- INSERT ---------- */
                 const result = await env.DB.prepare(`
@@ -482,8 +482,30 @@ export default {
         }
 
 
+        /* =====================================================
+   IMAGE URLS
+   POST /api/imageUrls
+   ===================================================== */
         if (request.method === "POST" && url.pathname === "/api/imageUrls") {
             try {
+                /* ---------- AUTH ---------- */
+                const token = getAuthToken(request);
+                if (!token) {
+                    return new Response("Unauthorized", {
+                        status: 401,
+                        headers: corsHeaders,
+                    });
+                }
+
+                const user = await verifyToken(token, env);
+                if (user.role !== "admin") {
+                    return new Response("Forbidden", {
+                        status: 403,
+                        headers: corsHeaders,
+                    });
+                }
+
+                /* ---------- BODY ---------- */
                 const { description_id, image_url } = await request.json();
 
                 if (!description_id || !image_url) {
@@ -492,39 +514,244 @@ export default {
                         {
                             status: 400,
                             headers: {
+                                ...corsHeaders,
                                 "Content-Type": "application/json",
-                                ...corsHeaders(request),
                             },
                         }
                     );
                 }
 
-                // DB insert here...
+                /* ---------- INSERT ---------- */
+                const created_on = Date.now();
 
+                await env.DB.prepare(`
+    INSERT INTO image_urls (
+        description_id,
+        image_url,
+        created_on
+    )
+    VALUES (?, ?, ?)
+`)
+                    .bind(description_id, image_url, created_on)
+                    .run();
+
+                /* ---------- RESPONSE ---------- */
                 return new Response(
                     JSON.stringify({ success: true }),
                     {
                         status: 200,
                         headers: {
+                            ...corsHeaders,
                             "Content-Type": "application/json",
-                            ...corsHeaders(request),
                         },
                     }
                 );
 
             } catch (err) {
+                console.error("IMAGE URL ERROR:", err);
+
                 return new Response(
                     JSON.stringify({ error: err.message }),
                     {
                         status: 500,
                         headers: {
+                            ...corsHeaders,
                             "Content-Type": "application/json",
-                            ...corsHeaders(request),
                         },
                     }
                 );
             }
         }
+
+
+        /* =====================================================
+      DELETE DESCRIPTION + R2 IMAGES
+      POST /api/delete-description
+      ===================================================== */
+        if (request.method === "POST" && url.pathname === "/api/delete-description") {
+            try {
+                /* ---------- AUTH ---------- */
+                const token = getAuthToken(request);
+                if (!token) {
+                    return new Response("Unauthorized", {
+                        status: 401,
+                        headers: corsHeaders,
+                    });
+                }
+
+                const user = await verifyToken(token, env);
+                if (user.role !== "admin") {
+                    return new Response("Forbidden", {
+                        status: 403,
+                        headers: corsHeaders,
+                    });
+                }
+
+                /* ---------- BODY ---------- */
+                const { description_id } = await request.json();
+                if (!description_id) {
+                    return new Response(
+                        JSON.stringify({ error: "description_id is required" }),
+                        {
+                            status: 400,
+                            headers: {
+                                ...corsHeaders,
+                                "Content-Type": "application/json",
+                            },
+                        }
+                    );
+                }
+
+                /* ---------- FETCH IMAGE URLS ---------- */
+                const { results: images } = await env.DB
+                    .prepare(`
+                SELECT image_url
+                FROM image_urls
+                WHERE description_id = ?
+            `)
+                    .bind(description_id)
+                    .all();
+
+                /* ---------- HELPER: URL → R2 KEY ---------- */
+                const extractR2Key = (value) => {
+                    if (!value) return null;
+
+                    // Already a path
+                    if (!value.startsWith("http")) {
+                        return value.replace(/^\/+/, "");
+                    }
+
+                    // Full URL → strip base
+                    return value.replace(`${env.R2_PUBLIC_URL}/`, "");
+                };
+
+                /* ---------- DELETE FROM R2 ---------- */
+                for (const img of images) {
+                    const key = extractR2Key(img.image_url);
+                    if (!key) continue;
+
+                    try {
+                        await env.IMAGES.delete(key);
+                    } catch (err) {
+                        console.warn("R2 delete failed:", key, err);
+                    }
+                }
+
+                /* ---------- DELETE DB RECORDS ---------- */
+                await env.DB
+                    .prepare(`DELETE FROM image_urls WHERE description_id = ?`)
+                    .bind(description_id)
+                    .run();
+
+                await env.DB
+                    .prepare(`DELETE FROM descriptions WHERE id = ?`)
+                    .bind(description_id)
+                    .run();
+
+                /* ---------- RESPONSE ---------- */
+                return new Response(
+                    JSON.stringify({ success: true }),
+                    {
+                        status: 200,
+                        headers: {
+                            ...corsHeaders,
+                            "Content-Type": "application/json",
+                        },
+                    }
+                );
+
+            } catch (err) {
+                console.error("DELETE DESCRIPTION ERROR:", err);
+
+                return new Response(
+                    JSON.stringify({ error: err.message }),
+                    {
+                        status: 500,
+                        headers: {
+                            ...corsHeaders,
+                            "Content-Type": "application/json",
+                        },
+                    }
+                );
+            }
+        }
+
+        /* =====================================================
+   UPDATE DESCRIPTION
+   PUT /api/description
+   ===================================================== */
+        if (request.method === "PUT" && url.pathname === "/api/description") {
+            try {
+                /* ---------- AUTH ---------- */
+                const token = getAuthToken(request);
+                if (!token) {
+                    return new Response("Unauthorized", {
+                        status: 401,
+                        headers: corsHeaders,
+                    });
+                }
+
+                const user = await verifyToken(token, env);
+                if (user.role !== "admin") {
+                    return new Response("Forbidden", {
+                        status: 403,
+                        headers: corsHeaders,
+                    });
+                }
+
+                /* ---------- BODY ---------- */
+                const { id, description_details } = await request.json();
+
+                if (!id || !description_details?.trim()) {
+                    return new Response(
+                        JSON.stringify({ error: "Missing fields" }),
+                        {
+                            status: 400,
+                            headers: {
+                                ...corsHeaders,
+                                "Content-Type": "application/json",
+                            },
+                        }
+                    );
+                }
+
+                /* ---------- UPDATE ---------- */
+                await env.DB.prepare(`
+            UPDATE descriptions
+            SET description_details = ?
+            WHERE id = ?
+        `)
+                    .bind(description_details.trim(), id)
+                    .run();
+
+                /* ---------- RESPONSE ---------- */
+                return new Response(
+                    JSON.stringify({ success: true }),
+                    {
+                        status: 200,
+                        headers: {
+                            ...corsHeaders,
+                            "Content-Type": "application/json",
+                        },
+                    }
+                );
+
+            } catch (err) {
+                console.error("UPDATE DESCRIPTION ERROR:", err);
+
+                return new Response(
+                    JSON.stringify({ error: err.message }),
+                    {
+                        status: 500,
+                        headers: {
+                            ...corsHeaders,
+                            "Content-Type": "application/json",
+                        },
+                    }
+                );
+            }
+        }
+
 
 
         return new Response("Not Found", { status: 404, headers: corsHeaders });
