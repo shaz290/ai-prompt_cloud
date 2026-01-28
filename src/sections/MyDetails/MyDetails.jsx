@@ -91,7 +91,12 @@ export const MyDetails = () => {
                                 <img
                                     src={item.image_urls?.[0]?.image_url}
                                     alt={item.image_name}
-                                    className="w-full aspect-[4/5] object-cover rounded-2xl"
+                                    className="w-full aspect-[4/5] object-cover rounded-2xl
+                                    border border-blue-500/30
+                                    shadow-lg shadow-blue-500/40
+                                    hover:border-blue-500/50
+                                    hover:shadow-xl hover:shadow-blue-500/60
+                                    transition-all duration-300"
                                 />
                             )}
 
@@ -235,32 +240,64 @@ export const MyDetails = () => {
 
                 {/* PAGINATION */}
                 {!sharedId && totalPages > 1 && (
-                    <div className="flex justify-center items-center gap-2 mt-16">
-                        <button onClick={() => setCurrentPage(1)} disabled={currentPage === 1}>
+                    <div className="flex justify-center items-center gap-3 mt-16">
+
+                        {/* FIRST */}
+                        <button
+                            onClick={() => setCurrentPage(1)}
+                            disabled={currentPage === 1}
+                            className="px-4 py-2 rounded-full text-sm font-medium
+                   border transition
+                   disabled:opacity-40 disabled:cursor-not-allowed
+                   hover:bg-primary/10"
+                        >
                             First
                         </button>
+
+                        {/* PREV */}
                         <button
                             onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
                             disabled={currentPage === 1}
+                            className="px-4 py-2 rounded-full text-sm font-medium
+                   border transition
+                   disabled:opacity-40 disabled:cursor-not-allowed
+                   hover:bg-primary/10"
                         >
-                            Prev
+                            ← Prev
                         </button>
-                        <span>
+
+                        {/* PAGE INDICATOR */}
+                        <div className="px-4 py-2 rounded-full text-sm font-semibold
+                    bg-primary text-white shadow-md">
                             {currentPage} / {totalPages}
-                        </span>
+                        </div>
+
+                        {/* NEXT */}
                         <button
                             onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
                             disabled={currentPage === totalPages}
+                            className="px-4 py-2 rounded-full text-sm font-medium
+                   border transition
+                   disabled:opacity-40 disabled:cursor-not-allowed
+                   hover:bg-primary/10"
                         >
-                            Next
+                            Next →
                         </button>
+
+                        {/* LAST */}
                         <button
                             onClick={() => setCurrentPage(totalPages)}
                             disabled={currentPage === totalPages}
+                            className="px-4 py-2 rounded-full text-sm font-medium
+                   border transition
+                   disabled:opacity-40 disabled:cursor-not-allowed
+                   hover:bg-primary/10"
                         >
                             Last
                         </button>
+
                     </div>
+
                 )}
             </div>
         </section>
