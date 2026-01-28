@@ -18,8 +18,3 @@ export const formatDate = (date) => {
         })
         .toUpperCase();
 };
-
-/* ---------- CLOUDINARY IMAGE ID ---------- */
-export const extractCloudinaryImageId = (url) => {
-    return url?.split("/")?.[4];
-};
