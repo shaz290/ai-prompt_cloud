@@ -2,11 +2,13 @@ import { Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
+/* =====================================================
+   PUBLIC NAV LINKS (NO UPLOAD HERE)
+   ===================================================== */
 const navLinks = [
   { href: "#home", label: "Home" },
   { href: "#about", label: "About" },
   { href: "#mydetails", label: "My Creations" },
-  { href: "/upload", label: "Upload" },
   { href: "#contact", label: "Contact Me" },
 ];
 
@@ -17,24 +19,32 @@ export const Navbar = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // 🔥 forces auth re-check even when route doesn't change
+  // 🔥 force auth refresh
   const [authVersion, setAuthVersion] = useState(0);
 
   const location = useLocation();
   const navigate = useNavigate();
 
-  /* ---------- SCROLL ---------- */
+  /* =====================================================
+     ROLE CHECK (LOWERCASE SAFE)
+     ===================================================== */
+  const isAdmin = user?.role?.toLowerCase() === "admin";
+
+  /* =====================================================
+     SCROLL EFFECT
+     ===================================================== */
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 50);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  /* ---------- AUTH CHECK (COOKIE) ---------- */
+  /* =====================================================
+     AUTH CHECK
+     ===================================================== */
   useEffect(() => {
     const fetchMe = async () => {
       setLoading(true);
-
       try {
         const res = await fetch(
           "https://ai-prompt-api.aipromptweb-caa.workers.dev/api/me",
@@ -58,9 +68,11 @@ export const Navbar = () => {
     };
 
     fetchMe();
-  }, [location.pathname, authVersion]); // ✅ BOTH ARE IMPORTANT
+  }, [location.pathname, authVersion]);
 
-  /* ---------- NAV ---------- */
+  /* =====================================================
+     NAVIGATION HANDLER
+     ===================================================== */
   const handleNavClick = (e, link) => {
     e.preventDefault();
     setIsMobileMenuOpen(false);
@@ -84,13 +96,14 @@ export const Navbar = () => {
     }
   };
 
-  /* ---------- LOGIN ---------- */
+  /* =====================================================
+     LOGIN / LOGOUT
+     ===================================================== */
   const handleLogin = () => {
     setIsMobileMenuOpen(false);
     navigate("/login");
   };
 
-  /* ---------- LOGOUT ---------- */
   const handleLogout = async () => {
     await fetch(
       "https://ai-prompt-api.aipromptweb-caa.workers.dev/api/logout",
@@ -102,18 +115,15 @@ export const Navbar = () => {
 
     setUser(null);
     setIsMobileMenuOpen(false);
-
-    // 🔥 FORCE AUTH RE-CHECK
     setAuthVersion(v => v + 1);
-
     navigate("/", { replace: true });
   };
 
   return (
     <header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${isScrolled
-        ? "glass-strong py-3 border-b border-blue-500/30 shadow-[0_6px_20px_rgba(59,130,246,0.35)]"
-        : "bg-transparent py-5"
+          ? "glass-strong py-3 border-b border-blue-500/30 shadow-[0_6px_20px_rgba(59,130,246,0.35)]"
+          : "bg-transparent py-5"
         }`}
     >
       {/* ================= NAVBAR ================= */}
@@ -127,7 +137,7 @@ export const Navbar = () => {
           ASH<span className="text-primary">.</span>
         </a>
 
-        {/* DESKTOP MENU */}
+        {/* ================= DESKTOP MENU ================= */}
         <div className="hidden md:flex items-center gap-4">
           <div className="glass rounded-full px-2 py-1 flex gap-1">
             {navLinks.map((link, i) => (
@@ -140,6 +150,19 @@ export const Navbar = () => {
                 {link.label}
               </a>
             ))}
+
+            {/* ✅ ADMIN ONLY UPLOAD */}
+            {!loading && isAdmin && (
+              <a
+                href="/upload"
+                onClick={(e) =>
+                  handleNavClick(e, { href: "/upload" })
+                }
+                className="px-4 py-2 text-sm rounded-full hover:bg-surface"
+              >
+                Upload
+              </a>
+            )}
           </div>
 
           {!loading &&
@@ -160,7 +183,7 @@ export const Navbar = () => {
             ))}
         </div>
 
-        {/* MOBILE TOGGLE */}
+        {/* ================= MOBILE TOGGLE ================= */}
         <button
           type="button"
           className="md:hidden p-2"
@@ -185,10 +208,22 @@ export const Navbar = () => {
               </a>
             ))}
 
+            {/* ✅ ADMIN ONLY UPLOAD */}
+            {!loading && isAdmin && (
+              <a
+                href="/upload"
+                onClick={(e) =>
+                  handleNavClick(e, { href: "/upload" })
+                }
+                className="text-lg py-2"
+              >
+                Upload
+              </a>
+            )}
+
             {!loading &&
               (user ? (
                 <button
-                  type="button"
                   onClick={handleLogout}
                   className="py-3 rounded-xl border"
                 >
@@ -196,7 +231,6 @@ export const Navbar = () => {
                 </button>
               ) : (
                 <button
-                  type="button"
                   onClick={handleLogin}
                   className="py-3 rounded-xl bg-primary text-white"
                 >

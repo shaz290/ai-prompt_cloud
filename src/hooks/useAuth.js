@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { API_BASE } from "@/config/api";
 
 export const useAuth = () => {
   const [user, setUser] = useState(null);

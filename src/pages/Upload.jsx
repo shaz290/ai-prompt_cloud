@@ -3,6 +3,7 @@ import { Navbar } from "@/layout/Navbar";
 import { Footer } from "@/layout/Footer";
 import { X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { compressImage } from "../../helper/imageCompression";
 
 const API_BASE = "https://ai-prompt-api.aipromptweb-caa.workers.dev";
 
@@ -134,8 +135,14 @@ export const Upload = () => {
       for (let i = 0; i < selectedFiles.length; i++) {
         setCurrentUploadingIndex(i + 1);
 
+        const compressedFile = await compressImage(selectedFiles[i], {
+          maxWidth: 1280,
+          maxHeight: 1280,
+          quality: 0.7,
+        });
+
         const formData = new FormData();
-        formData.append("file", selectedFiles[i]);
+        formData.append("file", compressedFile);
         formData.append("description_id", descriptionId);
 
         const uploadRes = await fetch(

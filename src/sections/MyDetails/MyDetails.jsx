@@ -2,6 +2,7 @@ import { SiOpenai, SiGoogle, SiPerplexity } from "react-icons/si";
 import { FILTERS } from "./constants";
 import { formatDate } from "./helpers";
 import { useMyDetails } from "./useMyDetails";
+import ImageSlider from "../../components/ImageSlider";
 
 export const MyDetails = () => {
     const {
@@ -81,17 +82,26 @@ export const MyDetails = () => {
                     {paginatedData.map((item) => (
                         <div key={item.id} className="flex flex-col h-full space-y-4">
 
-                            <img
-                                src={item.image_urls?.[0]?.image_url}
-                                className="w-full aspect-[4/5] object-cover rounded-2xl
-                                border border-blue-500/30
-                                shadow-md shadow-blue-500/30
-                                hover:shadow-xl hover:shadow-blue-500/60
-                                hover:border-blue-500/50
-                                transition-all duration-300"
-                                alt={item.image_name}
-                            />
+                            <div>
+                                {item.image_urls?.length > 1 ? (
+                                    <ImageSlider
+                                        images={item.image_urls}
+                                        alt={item.image_name}
+                                    />
+                                ) : (
+                                    <img
+                                        src={item.image_urls?.[0]?.image_url}
+                                        alt={item.image_name}
+                                        className="w-full aspect-[4/5] object-cover rounded-2xl
+                                        border border-blue-500/30
+                                        shadow-md shadow-blue-500/30
+                                        hover:shadow-xl hover:shadow-blue-500/60
+                                        hover:border-blue-500/50
+                                        transition-all duration-300"
+                                    />
+                                )}
 
+                            </div>
                             <div className="text-xs text-muted-foreground">
                                 {formatDate(item.created_on)}
                             </div>
