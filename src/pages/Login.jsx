@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { GoogleLogin } from "@react-oauth/google";
 import { API_BASE } from "@/config/api";
 
 export const Login = () => {
@@ -21,44 +20,23 @@ export const Login = () => {
         "https://ai-prompt-api.aipromptweb-caa.workers.dev/api/login",
         {
           method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
+          credentials: "include", // 🔐 cookie
+          headers: {
+            "Content-Type": "application/json",
+          },
           body: JSON.stringify({ email, password }),
         }
       );
 
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) {
+        throw new Error(await res.text());
+      }
 
       navigate("/");
     } catch (err) {
-      setError(err.message || "Login failed Please try later");
+      setError(err.message || "Login failed");
     } finally {
       setLoading(false);
-    }
-  };
-
-  // 🔐 GOOGLE LOGIN HANDLER
-  const handleGoogleSuccess = async (credentialResponse) => {
-    try {
-      setError("");
-
-      const res = await fetch(
-        "https://ai-prompt-api.aipromptweb-caa.workers.dev/api/auth/google",
-        {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            token: credentialResponse.credential,
-          }),
-        }
-      );
-
-      if (!res.ok) throw new Error("Google login failed");
-
-      navigate("/");
-    } catch (err) {
-      setError(err.message || "Google login failed");
     }
   };
 
@@ -70,7 +48,9 @@ export const Login = () => {
       >
         <h1 className="text-3xl font-bold text-center">Login</h1>
 
-        {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+        {error && (
+          <p className="text-red-500 text-sm text-center">{error}</p>
+        )}
 
         <input
           type="email"
@@ -96,21 +76,6 @@ export const Login = () => {
         >
           {loading ? "Logging in..." : "Login"}
         </button>
-
-        {/* 🔹 Divider */}
-        <div className="flex items-center gap-3">
-          <div className="flex-1 h-px bg-gray-300" />
-          <span className="text-sm text-gray-500">OR</span>
-          <div className="flex-1 h-px bg-gray-300" />
-        </div>
-
-        {/* 🔹 GOOGLE LOGIN BUTTON */}
-        <div className="flex justify-center">
-          <GoogleLogin
-            onSuccess={handleGoogleSuccess}
-            onError={() => setError("Google login failed")}
-          />
-        </div>
 
         <p className="text-center text-sm">
           Don’t have an account?{" "}
