@@ -24,6 +24,43 @@ function getCorsHeaders(request) {
 }
 
 /* =====================================================
+   GOOGLE TOKEN VERIFY (WORKER SAFE)
+   ===================================================== */
+
+async function verifyGoogleToken(idToken, env) {
+    const res = await fetch(
+        "https://oauth2.googleapis.com/tokeninfo?id_token=" +
+        encodeURIComponent(idToken)
+    );
+
+    const payload = await res.json();
+
+    if (!res.ok) {
+        throw new Error(payload.error_description || "Invalid Google token");
+    }
+
+    // ✅ ACCEPT aud OR azp
+    const validAudience =
+        payload.aud === env.GOOGLE_CLIENT_ID ||
+        payload.azp === env.GOOGLE_CLIENT_ID;
+
+    if (!validAudience) {
+        throw new Error(
+            `Audience mismatch: aud=${payload.aud}, azp=${payload.azp}`
+        );
+    }
+
+    return {
+        googleId: payload.sub,
+        email: payload.email,
+        name: payload.name,
+        picture: payload.picture,
+    };
+}
+
+
+
+/* =====================================================
    JWT HELPERS (WORKER SAFE)
    ===================================================== */
 
@@ -882,6 +919,91 @@ export default {
                         },
                     }
                 );
+            }
+        }
+        /* =====================================================
+           GOOGLE LOGIN
+           POST /api/auth/google
+           ===================================================== */
+        if (request.method === "POST" && url.pathname === "/api/auth/google") {
+            try {
+                const { token } = await request.json();
+
+                if (!token) {
+                    return new Response("Missing Google token", {
+                        status: 400,
+                        headers: corsHeaders,
+                    });
+                }
+
+                // 🔐 Verify Google token
+                const googleUser = await verifyGoogleToken(token, env);
+
+                const { email, googleId, name, picture } = googleUser;
+
+                // 🔍 Find existing user
+                let user = await env.DB
+                    .prepare(`
+                SELECT id, email, role, status
+                FROM users
+                WHERE email = ?
+            `)
+                    .bind(email)
+                    .first();
+
+                // 🆕 Create user if not exists
+                if (!user) {
+                    const id = crypto.randomUUID();
+
+                    await env.DB
+                        .prepare(`
+                    INSERT INTO users (
+                        id,
+                        email,
+                        role,
+                        status,
+                        google_id,
+                        auth_provider,
+                        avatar_url
+                    )
+                    VALUES (?, ?, 'user', 'active', ?, 'google', ?)
+                `)
+                        .bind(id, email, googleId, picture)
+                        .run();
+
+                    user = {
+                        id,
+                        email,
+                        role: "user",
+                        status: "active",
+                    };
+                }
+
+                if (user.status !== "active") {
+                    return new Response("Account disabled", {
+                        status: 403,
+                        headers: corsHeaders,
+                    });
+                }
+
+                // 🔐 Issue SAME JWT as normal login
+                const jwtToken = await signToken(user, env);
+
+                return new Response(JSON.stringify({ success: true }), {
+                    status: 200,
+                    headers: {
+                        ...corsHeaders,
+                        "Content-Type": "application/json",
+                        "Set-Cookie": `auth=${jwtToken}; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=604800`,
+                    },
+                });
+            } catch (err) {
+                console.error("GOOGLE AUTH ERROR:", err);
+
+                return new Response("Google authentication failed", {
+                    status: 401,
+                    headers: corsHeaders,
+                });
             }
         }
 
