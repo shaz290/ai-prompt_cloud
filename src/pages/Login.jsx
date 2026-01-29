@@ -31,7 +31,7 @@ export const Login = () => {
 
       navigate("/");
     } catch (err) {
-      setError(err.message || "Login failed");
+      setError(err.message || "Login failed Please try later");
     } finally {
       setLoading(false);
     }
