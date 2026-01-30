@@ -1,35 +1,37 @@
-
-import { Palette, Camera, Rocket, Lightbulb, Users } from "lucide-react";
-
+import { Lightbulb, Camera, Rocket, Palette, Users } from "lucide-react";
 
 const highlights = [
     {
-        icon: Palette,
-        title: "AI-Powered Art",
-        description: "Creating stunning AI-generated images using the latest tools and creative prompts."
+        icon: Lightbulb,
+        title: "Reusable AI Prompts",
+        description:
+            "Carefully written AI prompts that users can directly reuse or customize to generate their own images."
     },
     {
         icon: Camera,
-        title: "Daily Content",
-        description: "Consistently posting fresh images and creative content every day."
+        title: "Photo & Image Generation",
+        description:
+            "Prompts designed for realistic portraits, creative scenes, social media visuals, and artistic concepts."
     },
     {
         icon: Rocket,
-        title: "High-Quality Visuals",
-        description: "High-resolution, social-media-ready images perfect for reels, posts, and thumbnails."
+        title: "Optimized Results",
+        description:
+            "Each prompt is structured to help users achieve consistent, high-quality results across AI image tools."
     },
     {
-        icon: Lightbulb,
-        title: "Custom Prompts",
-        description: "Well-crafted AI prompts to achieve detailed, realistic, and artistic results."
+        icon: Palette,
+        title: "Creative Exploration",
+        description:
+            "Encouraging experimentation with styles, lighting, moods, and compositions through prompt engineering."
     },
     {
         icon: Users,
-        title: "Collaboration",
-        description: "Open to collaborations with brands, creators, and digital artists."
+        title: "Creator-Friendly",
+        description:
+            "Built for creators, designers, and anyone exploring AI-powered image generation."
     }
 ];
-
 
 export const About = () => {
     return (
@@ -37,54 +39,67 @@ export const About = () => {
             <div className="container mx-auto px-6 relative z-10">
                 <div className="grid lg:grid-cols-2 gap-16 items-center">
 
-                    {/* Left column */}
+                    {/* LEFT CONTENT */}
                     <div className="space-y-8">
-                        <div className="animate-fade-in">
-                            <span className="text-secondary-foreground text-sm font-medium tracking-wider uppercase">
-                                About Me
-                            </span>
-                        </div>
+                        <span className="text-secondary-foreground text-sm font-medium tracking-wider uppercase">
+                            About This Website
+                        </span>
 
-                        <h2 className="text-4xl md:text-5xl font-bold leading-tight animate-fade-in animation-delay-100 text-secondary-foreground">
-                            Building the future,
+                        <h2 className="text-4xl md:text-5xl font-bold leading-tight text-secondary-foreground">
+                            AI prompts that help you
                             <span className="block font-serif italic font-normal text-white">
-                                One Picture at a time
+                                generate your own images
                             </span>
                         </h2>
 
-                        <div className="space-y-4 text-muted-foreground animate-fade-in animation delay-200">
+                        <div className="space-y-4 text-muted-foreground">
                             <p>
-                                I’m a digital content creator who brings ideas to life through AI-generated visuals.
-                                By combining creativity with modern AI tools, I create unique, high-quality images
-                                that are designed to capture attention and tell a story. Each piece is crafted with a focus on detail,
-                                mood, and originality, making every image feel intentional and visually engaging.
+                                This website is a curated collection of AI image generation prompts
+                                created to help users produce high-quality photos and visuals using
+                                modern AI tools. Instead of guessing what works, visitors can reuse
+                                proven prompts or adapt them to match their own creative ideas.
                             </p>
+
                             <p>
-                                My work is driven by consistency, experimentation, and a passion for visual storytelling.
-                                I enjoy exploring new styles, refining prompts,
-                                and pushing creative boundaries to deliver content that stands out across digital platforms.
-                                Open to collaborations with brands and fellow creators, I aim to build visuals that inspire, connect, and leave a lasting impression.
+                                Each prompt is written with attention to detail, structure, and clarity,
+                                making it easier to achieve realistic results, artistic styles, or
+                                specific visual moods. These prompts can be used for portraits,
+                                conceptual artwork, social media content, or creative experimentation.
+                            </p>
+
+                            <p>
+                                The goal of this platform is to make AI image generation more accessible
+                                by focusing on prompt quality. Whether you are a beginner or an
+                                experienced creator, these prompts are designed to save time and help
+                                you get better results faster.
+                            </p>
+
+                            <p>
+                                Users are encouraged to experiment, customize prompts, and explore
+                                different creative directions while using this site as a starting point
+                                for their own AI-generated visuals.
                             </p>
                         </div>
 
-                        <div className="glass rounded-2xl p-6 glow-border animate-fade-in animation-delay-300">
-                            <p className="text-lg font-medium italic text-foreground ">
-                                "My mission is to create visually powerful AI-generated content that inspires, engages,
-                                and helps ideas come to life through creativity and technology."
+                        <div className="glass rounded-2xl p-6 glow-border">
+                            <p className="text-lg font-medium italic text-foreground">
+                                “The aim is to provide clear, reusable AI prompts that empower users to
+                                create their own images with confidence and creative freedom.”
                             </p>
                         </div>
                     </div>
 
-                    {/* Right column (placeholder for cards / image / highlights) */}
+                    {/* RIGHT CONTENT */}
                     <div className="grid sm:grid-cols-2 gap-6">
                         {highlights.map((item, idx) => (
-                            <div key={idx} className="glass p-6 rounded-2xl animate-fade-in"
-                                style={{ animationDelay: `${(idx + 1) * 100}ms` }}>
-                                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4 hover:bg-primary/20">
-                                    <item.icon className="w-6 h-6 text-primary"/>
+                            <div key={idx} className="glass p-6 rounded-2xl">
+                                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
+                                    <item.icon className="w-6 h-6 text-primary" />
                                 </div>
                                 <h3 className="text-lg font-semibold">{item.title}</h3>
-                                <p className="text-sm text-muted-foreground">{item.description}</p>
+                                <p className="text-sm text-muted-foreground">
+                                    {item.description}
+                                </p>
                             </div>
                         ))}
                     </div>
