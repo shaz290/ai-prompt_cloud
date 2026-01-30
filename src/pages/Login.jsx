@@ -87,7 +87,11 @@ export const Login = () => {
         onSubmit={handleLogin}
         className="w-full max-w-md p-8 rounded-3xl space-y-6 border"
       >
-        <h1 className="text-3xl font-bold text-center">Login</h1>
+        <h1 className="text-3xl font-bold text-center bg-gradient-to-r from-indigo-500 to-purple-500 bg-clip-text text-transparent">
+          Login
+        </h1>
+
+
 
         {error && (
           <p className="text-red-500 text-sm text-center">{error}</p>
