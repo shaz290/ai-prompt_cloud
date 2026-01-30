@@ -10,18 +10,41 @@ const allowedOrigins = [
     "http://localhost:5173",
 ];
 
+// function getCorsHeaders(request) {
+//     const origin = request.headers.get("Origin");
+//     if (origin && allowedOrigins.includes(origin)) {
+//         return {
+//             "Access-Control-Allow-Origin": origin,
+//             "Access-Control-Allow-Credentials": "true",
+//             "Access-Control-Allow-Headers": "Content-Type",
+//             "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+//         };
+//     }
+//     return {};
+// }
+
+function getCookieOptions(request) {
+    const origin = request.headers.get("Origin") || "";
+    const isLocalhost = origin.startsWith("http://localhost");
+
+    return isLocalhost
+        ? "HttpOnly; SameSite=Lax; Path=/; Max-Age=604800"
+        : "HttpOnly; Secure; SameSite=None; Path=/; Max-Age=604800";
+}
+
 function getCorsHeaders(request) {
     const origin = request.headers.get("Origin");
     if (origin && allowedOrigins.includes(origin)) {
         return {
             "Access-Control-Allow-Origin": origin,
             "Access-Control-Allow-Credentials": "true",
-            "Access-Control-Allow-Headers": "Content-Type",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
             "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
         };
     }
     return {};
 }
+
 
 /* =====================================================
    GOOGLE TOKEN VERIFY (WORKER SAFE)
@@ -927,7 +950,8 @@ export default {
            ===================================================== */
         if (request.method === "POST" && url.pathname === "/api/auth/google") {
             try {
-                const { token } = await request.json();
+                const body = await request.json();
+                const token = body?.token;
 
                 if (!token) {
                     return new Response("Missing Google token", {
@@ -936,18 +960,17 @@ export default {
                     });
                 }
 
-                // 🔐 Verify Google token
+                // 🔐 Verify Google ID token
                 const googleUser = await verifyGoogleToken(token, env);
+                const { email, googleId, picture, name } = googleUser;
 
-                const { email, googleId, name, picture } = googleUser;
-
-                // 🔍 Find existing user
+                // 🔍 Find existing user by email
                 let user = await env.DB
                     .prepare(`
-                SELECT id, email, role, status
-                FROM users
-                WHERE email = ?
-            `)
+        SELECT id, email, role, status
+        FROM users
+        WHERE email = ?
+      `)
                     .bind(email)
                     .first();
 
@@ -955,20 +978,25 @@ export default {
                 if (!user) {
                     const id = crypto.randomUUID();
 
+                    // IMPORTANT:
+                    // password_hash is NOT NULL in your table
+                    // so we must insert an empty string
                     await env.DB
                         .prepare(`
-                    INSERT INTO users (
-                        id,
-                        email,
-                        role,
-                        status,
-                        google_id,
-                        auth_provider,
-                        avatar_url
-                    )
-                    VALUES (?, ?, 'user', 'active', ?, 'google', ?)
-                `)
-                        .bind(id, email, googleId, picture)
+          INSERT INTO users (
+            id,
+            email,
+            password_hash,
+            name,
+            role,
+            status,
+            google_id,
+            auth_provider,
+            avatar_url
+          )
+          VALUES (?, ?, '', ?, 'user', 'active', ?, 'google', ?)
+        `)
+                        .bind(id, email, name ?? null, googleId, picture ?? null)
                         .run();
 
                     user = {
@@ -979,6 +1007,7 @@ export default {
                     };
                 }
 
+                // 🚫 Block disabled users
                 if (user.status !== "active") {
                     return new Response("Account disabled", {
                         status: 403,
@@ -986,7 +1015,7 @@ export default {
                     });
                 }
 
-                // 🔐 Issue SAME JWT as normal login
+                // 🔐 Issue JWT (same as email login)
                 const jwtToken = await signToken(user, env);
 
                 return new Response(JSON.stringify({ success: true }), {
@@ -994,18 +1023,26 @@ export default {
                     headers: {
                         ...corsHeaders,
                         "Content-Type": "application/json",
-                        "Set-Cookie": `auth=${jwtToken}; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=604800`,
+                        "Set-Cookie": `auth=${jwtToken}; ${getCookieOptions(request)}`,
                     },
                 });
             } catch (err) {
                 console.error("GOOGLE AUTH ERROR:", err);
 
-                return new Response("Google authentication failed", {
-                    status: 401,
-                    headers: corsHeaders,
-                });
+                // IMPORTANT: return 500 so real errors are visible during dev
+                return new Response(
+                    JSON.stringify({ error: err.message }),
+                    {
+                        status: 500,
+                        headers: {
+                            ...corsHeaders,
+                            "Content-Type": "application/json",
+                        },
+                    }
+                );
             }
         }
+
 
 
 
