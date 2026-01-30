@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 /* =====================================================
-   PUBLIC NAV LINKS (NO UPLOAD HERE)
+   PUBLIC NAV LINKS (HOME SECTIONS)
    ===================================================== */
 const navLinks = [
   { href: "#home", label: "Home" },
@@ -26,7 +26,7 @@ export const Navbar = () => {
   const navigate = useNavigate();
 
   /* =====================================================
-     ROLE CHECK (LOWERCASE SAFE)
+     ROLE CHECK
      ===================================================== */
   const isAdmin = user?.role?.toLowerCase() === "admin";
 
@@ -48,18 +48,11 @@ export const Navbar = () => {
       try {
         const res = await fetch(
           "https://ai-prompt-api.aipromptweb-caa.workers.dev/api/me",
-          {
-            method: "GET",
-            credentials: "include",
-          }
+          { method: "GET", credentials: "include" }
         );
 
-        if (!res.ok) {
-          setUser(null);
-        } else {
-          const data = await res.json();
-          setUser(data);
-        }
+        if (!res.ok) setUser(null);
+        else setUser(await res.json());
       } catch {
         setUser(null);
       } finally {
@@ -77,18 +70,20 @@ export const Navbar = () => {
     e.preventDefault();
     setIsMobileMenuOpen(false);
 
+    // Normal route navigation
     if (!link.href.startsWith("#")) {
       navigate(link.href);
       return;
     }
 
+    // Section navigation (always safe)
     if (location.pathname !== "/") {
       navigate("/");
       setTimeout(() => {
         document
           .querySelector(link.href)
           ?.scrollIntoView({ behavior: "smooth" });
-      }, 100);
+      }, 120);
     } else {
       document
         .querySelector(link.href)
@@ -107,31 +102,31 @@ export const Navbar = () => {
   const handleLogout = async () => {
     await fetch(
       "https://ai-prompt-api.aipromptweb-caa.workers.dev/api/logout",
-      {
-        method: "POST",
-        credentials: "include",
-      }
+      { method: "POST", credentials: "include" }
     );
 
     setUser(null);
-    setIsMobileMenuOpen(false);
     setAuthVersion(v => v + 1);
+    setIsMobileMenuOpen(false);
     navigate("/", { replace: true });
   };
 
   return (
     <header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${isScrolled
-          ? "glass-strong py-3 border-b border-blue-500/30 shadow-[0_6px_20px_rgba(59,130,246,0.35)]"
-          : "bg-transparent py-5"
+        ? "glass-strong py-3 border-b border-blue-500/30 shadow-[0_6px_20px_rgba(59,130,246,0.35)]"
+        : "bg-transparent py-5"
         }`}
     >
       {/* ================= NAVBAR ================= */}
       <nav className="container mx-auto px-6 flex items-center justify-between">
         {/* LOGO */}
         <a
-          href="#home"
-          onClick={(e) => handleNavClick(e, { href: "#home" })}
+          href="/"
+          onClick={(e) => {
+            e.preventDefault();
+            navigate("/");
+          }}
           className="text-xl font-bold"
         >
           ASH<span className="text-primary">.</span>
@@ -151,7 +146,7 @@ export const Navbar = () => {
               </a>
             ))}
 
-            {/* ✅ ADMIN ONLY UPLOAD */}
+            {/* ADMIN ONLY */}
             {!loading && isAdmin && (
               <a
                 href="/upload"
@@ -163,6 +158,17 @@ export const Navbar = () => {
                 Upload
               </a>
             )}
+
+            {/* PRIVACY */}
+            <a
+              href="/privacy-policy"
+              onClick={(e) =>
+                handleNavClick(e, { href: "/privacy-policy" })
+              }
+              className="px-4 py-2 text-sm rounded-full hover:bg-surface"
+            >
+              Privacy
+            </a>
           </div>
 
           {!loading &&
@@ -208,7 +214,6 @@ export const Navbar = () => {
               </a>
             ))}
 
-            {/* ✅ ADMIN ONLY UPLOAD */}
             {!loading && isAdmin && (
               <a
                 href="/upload"
@@ -220,6 +225,16 @@ export const Navbar = () => {
                 Upload
               </a>
             )}
+
+            <a
+              href="/privacy-policy"
+              onClick={(e) =>
+                handleNavClick(e, { href: "/privacy-policy" })
+              }
+              className="text-lg py-2"
+            >
+              Privacy Policy
+            </a>
 
             {!loading &&
               (user ? (

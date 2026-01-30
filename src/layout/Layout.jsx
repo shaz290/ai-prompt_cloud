@@ -1,22 +1,20 @@
 import { Outlet } from "react-router-dom";
+import { Navbar } from "./Navbar";
+import { Footer } from "./Footer";
 
 export const Layout = () => {
     return (
         <>
-            {/* HEADER */}
-            <header className="p-4 border-b">
-                <h1 className="font-bold">My App</h1>
-            </header>
+            {/* GLOBAL NAVBAR */}
+            <Navbar />
 
             {/* PAGE CONTENT */}
-            <main>
+            <main className="pt-24">
                 <Outlet />
             </main>
 
-            {/* FOOTER */}
-            <footer className="p-4 border-t text-center text-sm">
-                © 2026
-            </footer>
+            {/* GLOBAL FOOTER */}
+            <Footer />
         </>
     );
 };
