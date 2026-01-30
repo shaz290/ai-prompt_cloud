@@ -7,7 +7,6 @@ import ImageSlider from "../../components/ImageSlider";
 export const MyDetails = () => {
     const {
         loading,
-        isLoggedIn,
         isAdmin,
         sharedId,
         activeFilter,
@@ -45,7 +44,7 @@ export const MyDetails = () => {
                         My <span className="font-serif italic">Creations</span>
                     </h2>
                     <p className="text-muted-foreground">
-                        Browse AI-generated visuals
+                        Browse AI-generated visuals and prompts
                     </p>
                 </div>
 
@@ -92,11 +91,11 @@ export const MyDetails = () => {
                                     src={item.image_urls?.[0]?.image_url}
                                     alt={item.image_name}
                                     className="w-full aspect-[4/5] object-cover rounded-2xl
-                                    border border-blue-500/30
-                                    shadow-lg shadow-blue-500/40
-                                    hover:border-blue-500/50
-                                    hover:shadow-xl hover:shadow-blue-500/60
-                                    transition-all duration-300"
+                    border border-blue-500/30
+                    shadow-lg shadow-blue-500/40
+                    hover:border-blue-500/50
+                    hover:shadow-xl hover:shadow-blue-500/60
+                    transition-all duration-300"
                                 />
                             )}
 
@@ -105,52 +104,33 @@ export const MyDetails = () => {
                                 {formatDate(item.created_on)}
                             </div>
 
-                            {/* DESCRIPTION OR MESSAGE */}
-                            {isAdmin ? (
-                                editingId === item.id ? (
-                                    <textarea
-                                        value={editValue}
-                                        onChange={(e) => setEditValue(e.target.value)}
-                                        className="h-[96px] text-sm border rounded-xl p-2 resize-none"
-                                    />
-                                ) : (
-                                    <div className="h-[96px] text-sm text-muted-foreground overflow-auto">
-                                        {item.description_details}
-                                    </div>
-                                )
+                            {/* PROMPT (VISIBLE TO ALL) */}
+                            {isAdmin && editingId === item.id ? (
+                                <textarea
+                                    value={editValue}
+                                    onChange={(e) => setEditValue(e.target.value)}
+                                    className="h-[96px] text-sm border rounded-xl p-2 resize-none"
+                                />
                             ) : (
-                                <div
-                                    className="h-[96px] flex items-center justify-center rounded-xl
-                border border-emerald-400/30
-                bg-gradient-to-br from-emerald-400/10 to-transparent
-                text-center px-4"
-                                >
-                                    <p
-                                        className="text-sm font-medium text-emerald-500
-                  animate-pulse
-                  drop-shadow-[0_0_10px_rgba(16,185,129,0.6)]"
-                                    >
-                                        {!isLoggedIn
-                                            ? "Sign up or log in to be the first to access our upcoming prompts."
-                                            : "✨ Thanks for logging in! Exciting prompts are coming your way soon."}
-                                    </p>
+                                <div className="h-[96px] text-sm text-muted-foreground overflow-auto">
+                                    {item.description_details}
                                 </div>
                             )}
 
-                            {/* ACTIONS — ADMIN ONLY */}
-                            {isAdmin && (
-                                <div className="mt-auto space-y-3">
+                            {/* COPY BUTTON (VISIBLE TO ALL) */}
+                            <button
+                                onClick={() => {
+                                    navigator.clipboard.writeText(item.description_details);
+                                    showToast("Copied to clipboard");
+                                }}
+                                className="w-full py-2 bg-primary text-white rounded-xl"
+                            >
+                                Copy Prompt
+                            </button>
 
-                                    {/* COPY */}
-                                    <button
-                                        onClick={() => {
-                                            navigator.clipboard.writeText(item.description_details);
-                                            showToast("Copied to clipboard");
-                                        }}
-                                        className="w-full py-2 bg-primary text-white rounded-xl"
-                                    >
-                                        Copy
-                                    </button>
+                            {/* ADMIN ACTIONS */}
+                            {isAdmin && (
+                                <div className="space-y-3">
 
                                     {/* SHARE */}
                                     <button
@@ -206,9 +186,10 @@ export const MyDetails = () => {
                                 </div>
                             )}
 
-                            {/* AI ICONS (always visible) */}
-                            <div className="flex justify-center gap-6 pt-2">
+                            {/* AI ICONS */}
+                            <div className="flex justify-center gap-6 pt-2 text-xl">
                                 <SiGoogle
+                                    className="cursor-pointer hover:text-blue-500"
                                     onClick={() =>
                                         window.open(
                                             `https://gemini.google.com/app?q=${encodeURIComponent(
@@ -219,11 +200,13 @@ export const MyDetails = () => {
                                     }
                                 />
                                 <SiOpenai
+                                    className="cursor-pointer hover:text-green-500"
                                     onClick={() =>
                                         window.open("https://chat.openai.com/", "_blank")
                                     }
                                 />
                                 <SiPerplexity
+                                    className="cursor-pointer hover:text-purple-500"
                                     onClick={() =>
                                         window.open(
                                             `https://www.perplexity.ai/?q=${encodeURIComponent(
@@ -234,6 +217,7 @@ export const MyDetails = () => {
                                     }
                                 />
                             </div>
+
                         </div>
                     ))}
                 </div>
@@ -241,64 +225,44 @@ export const MyDetails = () => {
                 {/* PAGINATION */}
                 {!sharedId && totalPages > 1 && (
                     <div className="flex justify-center items-center gap-3 mt-16">
-
-                        {/* FIRST */}
                         <button
                             onClick={() => setCurrentPage(1)}
                             disabled={currentPage === 1}
-                            className="px-4 py-2 rounded-full text-sm font-medium
-                   border transition
-                   disabled:opacity-40 disabled:cursor-not-allowed
-                   hover:bg-primary/10"
+                            className="px-4 py-2 rounded-full border disabled:opacity-40"
                         >
                             First
                         </button>
 
-                        {/* PREV */}
                         <button
                             onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
                             disabled={currentPage === 1}
-                            className="px-4 py-2 rounded-full text-sm font-medium
-                   border transition
-                   disabled:opacity-40 disabled:cursor-not-allowed
-                   hover:bg-primary/10"
+                            className="px-4 py-2 rounded-full border disabled:opacity-40"
                         >
                             ← Prev
                         </button>
 
-                        {/* PAGE INDICATOR */}
-                        <div className="px-4 py-2 rounded-full text-sm font-semibold
-                    bg-primary text-white shadow-md">
+                        <div className="px-4 py-2 rounded-full bg-primary text-white">
                             {currentPage} / {totalPages}
                         </div>
 
-                        {/* NEXT */}
                         <button
                             onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
                             disabled={currentPage === totalPages}
-                            className="px-4 py-2 rounded-full text-sm font-medium
-                   border transition
-                   disabled:opacity-40 disabled:cursor-not-allowed
-                   hover:bg-primary/10"
+                            className="px-4 py-2 rounded-full border disabled:opacity-40"
                         >
                             Next →
                         </button>
 
-                        {/* LAST */}
                         <button
                             onClick={() => setCurrentPage(totalPages)}
                             disabled={currentPage === totalPages}
-                            className="px-4 py-2 rounded-full text-sm font-medium
-                   border transition
-                   disabled:opacity-40 disabled:cursor-not-allowed
-                   hover:bg-primary/10"
+                            className="px-4 py-2 rounded-full border disabled:opacity-40"
                         >
                             Last
                         </button>
-
                     </div>
-
                 )}
+
             </div>
         </section>
     );
