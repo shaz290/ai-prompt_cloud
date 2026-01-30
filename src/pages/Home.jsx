@@ -15,7 +15,7 @@ export const Home = () => {
         <About />
         <Contact />
       </main>
-      <Footer />
+      {/* <Footer /> */}
     </>
   );
 };
