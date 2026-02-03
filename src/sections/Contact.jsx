@@ -2,37 +2,42 @@ import {
   Mail,
   Phone,
   MapPin,
-  Send,
   CheckCircle,
   AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/Button";
 import { useState } from "react";
 
-const contactInfo = [
-  {
-    icon: Mail,
-    label: "Email",
-    value: "theahsanw@gmail.com",
-    href: "mailto:theahsanw@gmail.com",
-  },
-  {
-    icon: Phone,
-    label: "Phone",
-    value: "+91 70089 71654",
-    href: "tel:+917008971654",
-  },
-  {
-    icon: MapPin,
-    label: "Location",
-    value: "India",
-    href: "#",
-  },
-];
-
 const Contact = () => {
   const [status, setStatus] = useState("idle");
   const [loading, setLoading] = useState(false);
+
+  // ✅ Detect if user came from shared URL
+  const isSharedUser =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).has("share");
+
+  const contactInfo = [
+    {
+      icon: Mail,
+      label: "Email",
+      value: "theahsanw@gmail.com",
+      href: "mailto:theahsanw@gmail.com",
+    },
+    {
+      icon: Phone,
+      label: "Phone",
+      value: isSharedUser ? "##########" : "+91 70089 71654",
+      href: isSharedUser ? "#" : "tel:+917008971654",
+      disabled: isSharedUser,
+    },
+    {
+      icon: MapPin,
+      label: "Location",
+      value: "India",
+      href: "#",
+    },
+  ];
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -146,7 +151,11 @@ const Contact = () => {
               <a
                 key={i}
                 href={item.href}
-                className="flex gap-4 items-center p-4 rounded-xl hover:bg-surface"
+                onClick={
+                  item.disabled ? (e) => e.preventDefault() : undefined
+                }
+                className={`flex gap-4 items-center p-4 rounded-xl hover:bg-surface ${item.disabled ? "cursor-not-allowed opacity-60" : ""
+                  }`}
               >
                 <item.icon className="w-5 h-5 text-primary" />
                 <span>{item.value}</span>

@@ -153,6 +153,103 @@ export default {
         }
 
         /* =====================================================
+           🔥 NEW ENDPOINT
+           GET /api/description?id=72
+           ===================================================== */
+        if (request.method === "GET" && url.pathname === "/api/description") {
+            try {
+                const id = Number(url.searchParams.get("id"));
+
+                if (!id) {
+                    return new Response(
+                        JSON.stringify({ error: "description id is required" }),
+                        {
+                            status: 400,
+                            headers: {
+                                ...corsHeaders,
+                                "Content-Type": "application/json",
+                            },
+                        }
+                    );
+                }
+
+                const { results } = await env.DB
+                    .prepare(`
+                        SELECT
+                            d.id,
+                            d.image_name,
+                            d.image_type,
+                            d.description_details,
+                            d.priority,
+                            d.created_on,
+                            i.image_url
+                        FROM descriptions d
+                        LEFT JOIN image_urls i
+                            ON i.description_id = d.id
+                        WHERE d.id = ?
+                    `)
+                    .bind(id)
+                    .all();
+
+                if (!results.length) {
+                    return new Response(
+                        JSON.stringify({ error: "Description not found" }),
+                        {
+                            status: 404,
+                            headers: {
+                                ...corsHeaders,
+                                "Content-Type": "application/json",
+                            },
+                        }
+                    );
+                }
+
+                const description = {
+                    id: results[0].id,
+                    image_name: results[0].image_name,
+                    image_type: results[0].image_type,
+                    description_details: results[0].description_details,
+                    priority: results[0].priority,
+                    created_on: results[0].created_on,
+                    image_urls: [],
+                };
+
+                for (const row of results) {
+                    if (row.image_url) {
+                        description.image_urls.push({
+                            image_url: `${env.R2_PUBLIC_URL}/${row.image_url}`,
+                        });
+                    }
+                }
+
+                return new Response(
+                    JSON.stringify({ data: description }),
+                    {
+                        status: 200,
+                        headers: {
+                            ...corsHeaders,
+                            "Content-Type": "application/json",
+                            "Cache-Control": "no-store",
+                        },
+                    }
+                );
+
+            } catch (err) {
+                return new Response(
+                    JSON.stringify({ error: err.message }),
+                    {
+                        status: 500,
+                        headers: {
+                            ...corsHeaders,
+                            "Content-Type": "application/json",
+                        },
+                    }
+                );
+            }
+        }
+
+
+        /* =====================================================
            SIGNUP
            POST /api/signup
            ===================================================== */

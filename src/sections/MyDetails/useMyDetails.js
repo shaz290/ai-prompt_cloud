@@ -2,9 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { PAGE_SIZE } from "./constants";
 import { getShareIdFromUrl } from "./helpers";
 
-/* =====================================================
-   API BASE URL
-   ===================================================== */
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 if (!API_BASE_URL) {
@@ -17,9 +14,7 @@ export const useMyDetails = () => {
     const [authLoading, setAuthLoading] = useState(true);
 
     useEffect(() => {
-        fetch("https://ai-prompt-api.aipromptweb-caa.workers.dev/api/me", {
-            credentials: "include",
-        })
+        fetch(`${API_BASE_URL}/api/me`, { credentials: "include" })
             .then((res) => (res.ok ? res.json() : null))
             .then((data) => {
                 setAuthDetails(data);
@@ -29,7 +24,6 @@ export const useMyDetails = () => {
     }, []);
 
     const isAdmin = authDetails?.role === "admin";
-    const isLoggedIn = !!authDetails;
 
     /* ================= DATA ================= */
     const [data, setData] = useState([]);
@@ -39,6 +33,8 @@ export const useMyDetails = () => {
     const [toastMessage, setToastMessage] = useState("");
 
     const [sharedId, setSharedId] = useState(null);
+    const isSharedView = useRef(false); // 🔒 hard lock
+
     const [activeFilter, setActiveFilter] = useState("all");
 
     const [editingId, setEditingId] = useState(null);
@@ -54,23 +50,72 @@ export const useMyDetails = () => {
     const sectionRef = useRef(null);
     const firstRender = useRef(true);
 
+    /* ================= FETCH PAGINATED ================= */
+    const fetchDetails = async (page) => {
+        setLoading(true);
+        try {
+            const res = await fetch(
+                `${API_BASE_URL}/api/descriptions?page=${page}&pageSize=${PAGE_SIZE}`
+            );
+            if (!res.ok) throw new Error("Fetch failed");
+
+            const result = await res.json();
+            setData(result.data || []);
+            if (result.pagination) setPageDetails(result.pagination);
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    /* ================= FETCH SINGLE (SHARE) ================= */
+    const fetchSingleDescription = async (id) => {
+        setLoading(true);
+        try {
+            const res = await fetch(
+                `${API_BASE_URL}/api/description?id=${id}`
+            );
+            if (!res.ok) throw new Error("Fetch failed");
+
+            const result = await res.json();
+            setData(result.data ? [result.data] : []);
+
+            // Disable pagination completely
+            setPageDetails({
+                page: 1,
+                pageSize: 1,
+                totalPages: 1,
+                totalRecords: 1,
+            });
+        } catch (err) {
+            console.error(err);
+            setData([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     /* ================= INITIAL LOAD ================= */
     useEffect(() => {
         if (authLoading) return;
 
         const id = getShareIdFromUrl();
+
         if (id) {
+            isSharedView.current = true;   // 🔒 LOCK pagination forever
             setSharedId(id);
-            fetchDetails(1);
-        } else {
-            fetchDetails(currentPage);
+            fetchSingleDescription(id);    // ✅ ONLY API CALL
+            return;                        // ⛔ STOP
         }
+
+        fetchDetails(1);                   // normal flow
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [authLoading]);
 
     /* ================= PAGE CHANGE ================= */
     useEffect(() => {
-        if (sharedId) return;
+        if (isSharedView.current) return; // ⛔ HARD BLOCK
         fetchDetails(currentPage);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentPage]);
@@ -88,41 +133,9 @@ export const useMyDetails = () => {
         });
     }, [currentPage]);
 
-    /* ================= FETCH ================= */
-    const fetchDetails = async (page = 1) => {
-        setLoading(true);
-
-        try {
-            const res = await fetch(
-                `${API_BASE_URL}/api/descriptions?page=${page}&pageSize=${PAGE_SIZE}`
-            );
-
-            if (!res.ok) throw new Error("Fetch failed");
-
-            const result = await res.json();
-            setData(result.data || []);
-
-            if (result.pagination) {
-                setPageDetails(result.pagination);
-            }
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setLoading(false);
-        }
-    };
-
     /* ================= UPDATE ================= */
     const handleUpdate = async (itemId) => {
-        if (!isAdmin) {
-            showToast("Not authorized");
-            return;
-        }
-
-        if (!editValue.trim()) {
-            showToast("Description cannot be empty");
-            return;
-        }
+        if (!isAdmin || !editValue.trim()) return;
 
         try {
             const res = await fetch(`${API_BASE_URL}/api/description`, {
@@ -135,7 +148,7 @@ export const useMyDetails = () => {
                 }),
             });
 
-            if (!res.ok) throw new Error("Update failed");
+            if (!res.ok) throw new Error();
 
             setData((prev) =>
                 prev.map((d) =>
@@ -155,28 +168,18 @@ export const useMyDetails = () => {
 
     /* ================= DELETE ================= */
     const handleDelete = async (item) => {
-        if (!isAdmin) {
-            showToast("Not authorized");
-            return;
-        }
-
-        const confirmed = window.confirm(
-            "Are you sure you want to delete this?\nThis cannot be undone."
-        );
-        if (!confirmed) return;
+        if (!isAdmin) return;
+        if (!window.confirm("Are you sure?")) return;
 
         try {
             const res = await fetch(`${API_BASE_URL}/api/delete-description`, {
                 method: "POST",
                 credentials: "include",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    description_id: item.id,
-                }),
+                body: JSON.stringify({ description_id: item.id }),
             });
 
-            if (!res.ok) throw new Error("Delete failed");
-
+            if (!res.ok) throw new Error();
             setData((prev) => prev.filter((d) => d.id !== item.id));
             showToast("Deleted successfully");
         } catch {
@@ -191,26 +194,13 @@ export const useMyDetails = () => {
     };
 
     /* ================= FILTER ================= */
-    const filteredData = (() => {
-        let result = data;
+    const filteredData =
+        activeFilter === "all"
+            ? data
+            : data.filter((d) => d.image_type === activeFilter);
 
-        if (sharedId) {
-            return result.filter((item) => item.id.toString() === sharedId);
-        }
-
-        if (activeFilter !== "all") {
-            result = result.filter(
-                (item) => item.image_type === activeFilter
-            );
-        }
-
-        return result;
-    })();
-
-    /* ================= RETURN ================= */
     return {
         loading: loading || authLoading,
-        isLoggedIn,
         isAdmin,
         sharedId,
         activeFilter,
