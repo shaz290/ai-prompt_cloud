@@ -138,10 +138,15 @@ export const MyDetails = () => {
                                     navigator.clipboard.writeText(item.description_details);
                                     showToast("Copied to clipboard");
                                 }}
-                                className="w-full py-2 bg-primary text-white rounded-xl"
+                                className={`w-full py-2 rounded-xl transition
+        ${sharedId
+                                        ? "bg-primary text-white ring-2 ring-primary ring-offset-2 animate-pulse"
+                                        : "bg-primary text-white"
+                                    }`}
                             >
                                 Copy Prompt
                             </button>
+
 
                             {isAdmin && (
                                 <div className="space-y-3">
