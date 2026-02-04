@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { SiOpenai, SiGoogle, SiPerplexity } from "react-icons/si";
 import { FILTERS } from "./constants";
 import { formatDate } from "./helpers";
@@ -26,6 +27,26 @@ export const MyDetails = () => {
         showToast,
     } = useMyDetails();
 
+    const didScroll = useRef(false);
+
+    // ✅ AUTO SCROLL TO MY CREATIONS AFTER CONTENT IS RENDERED
+    useEffect(() => {
+        if (loading) return;
+        if (!sectionRef?.current) return;
+        if (didScroll.current) return;
+
+        didScroll.current = true;
+
+        const timer = setTimeout(() => {
+            sectionRef.current.scrollIntoView({
+                behavior: "smooth",
+                block: "start",
+            });
+        }, 300); // small delay to ensure layout is ready
+
+        return () => clearTimeout(timer);
+    }, [loading, sectionRef, sharedId]);
+
     if (loading) {
         return (
             <section className="py-32 text-center">
@@ -37,7 +58,6 @@ export const MyDetails = () => {
     return (
         <section ref={sectionRef} id="mydetails" className="py-32">
             <div className="container mx-auto px-6">
-
                 {/* HEADER */}
                 <div className="text-center mb-10">
                     <h2 className="text-4xl md:text-5xl font-bold mb-4">
@@ -82,8 +102,6 @@ export const MyDetails = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-12">
                     {paginatedData.map((item) => (
                         <div key={item.id} className="flex flex-col h-full space-y-4">
-
-                            {/* IMAGE */}
                             {item.image_urls?.length > 1 ? (
                                 <ImageSlider images={item.image_urls} alt={item.image_name} />
                             ) : (
@@ -99,12 +117,10 @@ export const MyDetails = () => {
                                 />
                             )}
 
-                            {/* DATE */}
                             <div className="text-xs text-muted-foreground">
                                 {formatDate(item.created_on)}
                             </div>
 
-                            {/* PROMPT (VISIBLE TO ALL) */}
                             {isAdmin && editingId === item.id ? (
                                 <textarea
                                     value={editValue}
@@ -117,7 +133,6 @@ export const MyDetails = () => {
                                 </div>
                             )}
 
-                            {/* COPY BUTTON (VISIBLE TO ALL) */}
                             <button
                                 onClick={() => {
                                     navigator.clipboard.writeText(item.description_details);
@@ -128,11 +143,8 @@ export const MyDetails = () => {
                                 Copy Prompt
                             </button>
 
-                            {/* ADMIN ACTIONS */}
                             {isAdmin && (
                                 <div className="space-y-3">
-
-                                    {/* SHARE */}
                                     <button
                                         onClick={() => {
                                             navigator.clipboard.writeText(
@@ -145,7 +157,6 @@ export const MyDetails = () => {
                                         Share Link
                                     </button>
 
-                                    {/* EDIT / SAVE */}
                                     {editingId === item.id ? (
                                         <div className="flex gap-2">
                                             <button
@@ -176,7 +187,6 @@ export const MyDetails = () => {
                                         </button>
                                     )}
 
-                                    {/* DELETE */}
                                     <button
                                         onClick={() => handleDelete(item)}
                                         className="w-full py-2 border border-red-500 text-red-500 rounded-xl"
@@ -186,7 +196,6 @@ export const MyDetails = () => {
                                 </div>
                             )}
 
-                            {/* AI ICONS */}
                             <div className="flex justify-center gap-6 pt-2 text-xl">
                                 <SiGoogle
                                     className="cursor-pointer hover:text-blue-500"
@@ -201,9 +210,7 @@ export const MyDetails = () => {
                                 />
                                 <SiOpenai
                                     className="cursor-pointer hover:text-green-500"
-                                    onClick={() =>
-                                        window.open("https://chat.openai.com/", "_blank")
-                                    }
+                                    onClick={() => window.open("https://chat.openai.com/", "_blank")}
                                 />
                                 <SiPerplexity
                                     className="cursor-pointer hover:text-purple-500"
@@ -217,7 +224,6 @@ export const MyDetails = () => {
                                     }
                                 />
                             </div>
-
                         </div>
                     ))}
                 </div>
