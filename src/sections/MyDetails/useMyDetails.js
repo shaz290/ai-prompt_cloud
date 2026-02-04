@@ -25,6 +25,12 @@ export const useMyDetails = () => {
 
     const isAdmin = authDetails?.role === "admin";
 
+    /* ================= SHARE MODE (LOCKED SYNC) ================= */
+    const initialShareId = getShareIdFromUrl();   // ✅ sync read once
+    const [sharedId, setSharedId] = useState(initialShareId);
+    const isSharedView = useRef(!!initialShareId); // 🔒 LOCK before any effect
+    const didInit = useRef(false);                 // 🛑 strict-mode guard
+
     /* ================= DATA ================= */
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -32,11 +38,7 @@ export const useMyDetails = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [toastMessage, setToastMessage] = useState("");
 
-    const [sharedId, setSharedId] = useState(null);
-    const isSharedView = useRef(false); // 🔒 hard lock
-
     const [activeFilter, setActiveFilter] = useState("all");
-
     const [editingId, setEditingId] = useState(null);
     const [editValue, setEditValue] = useState("");
 
@@ -52,6 +54,7 @@ export const useMyDetails = () => {
 
     /* ================= FETCH PAGINATED ================= */
     const fetchDetails = async (page) => {
+        if (isSharedView.current) return; // ⛔ HARD BLOCK
         setLoading(true);
         try {
             const res = await fetch(
@@ -73,15 +76,12 @@ export const useMyDetails = () => {
     const fetchSingleDescription = async (id) => {
         setLoading(true);
         try {
-            const res = await fetch(
-                `${API_BASE_URL}/api/description?id=${id}`
-            );
+            const res = await fetch(`${API_BASE_URL}/api/description?id=${id}`);
             if (!res.ok) throw new Error("Fetch failed");
 
             const result = await res.json();
             setData(result.data ? [result.data] : []);
 
-            // Disable pagination completely
             setPageDetails({
                 page: 1,
                 pageSize: 1,
@@ -99,23 +99,21 @@ export const useMyDetails = () => {
     /* ================= INITIAL LOAD ================= */
     useEffect(() => {
         if (authLoading) return;
+        if (didInit.current) return;
+        didInit.current = true;
 
-        const id = getShareIdFromUrl();
-
-        if (id) {
-            isSharedView.current = true;   // 🔒 LOCK pagination forever
-            setSharedId(id);
-            fetchSingleDescription(id);    // ✅ ONLY API CALL
-            return;                        // ⛔ STOP
+        if (isSharedView.current && sharedId) {
+            fetchSingleDescription(sharedId);  // ✅ ONLY this runs
+            return;
         }
 
-        fetchDetails(1);                   // normal flow
+        fetchDetails(1); // normal flow
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [authLoading]);
+    }, [authLoading, sharedId]);
 
     /* ================= PAGE CHANGE ================= */
     useEffect(() => {
-        if (isSharedView.current) return; // ⛔ HARD BLOCK
+        if (isSharedView.current) return;
         fetchDetails(currentPage);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentPage]);
